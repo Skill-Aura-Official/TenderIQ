@@ -1,0 +1,42 @@
+{
+  "name": "tender-iq-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "TenderIQ Fastify Backend Server",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "tsx watch src/app.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.5.0",
+    "@clerk/fastify": "^3.1.32",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/websocket": "^11.2.0",
+    "@google-cloud/storage": "^7.19.0",
+    "@libsql/client": "^0.6.0",
+    "bcrypt": "^5.1.1",
+    "bullmq": "^5.78.0",
+    "cheerio": "^1.2.0",
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.30.10",
+    "fastify": "^5.8.5",
+    "ioredis": "^5.11.1",
+    "node-cron": "^4.2.1",
+    "pg": "^8.21.0",
+    "pgvector": "^0.3.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/node": "^20.12.7",
+    "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.21.4",
+    "tsx": "^4.7.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.5.0"
+  }
+}
