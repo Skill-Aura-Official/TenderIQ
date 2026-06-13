@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import { Toaster } from 'react-hot-toast';
+import { PostHogProvider } from '@/providers/posthog-provider';
 import "./globals.css";
 
 const inter = Inter({
@@ -20,11 +21,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full bg-slate-50" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased h-full text-slate-900`} suppressHydrationWarning>
+    <html lang="en" className="dark">
+      <body className={inter.className}>
         <ClerkProvider>
-          <Toaster position="top-right" />
-          {children}
+          <PostHogProvider>
+            {children}
+            <Toaster position="top-right" />
+          </PostHogProvider>
         </ClerkProvider>
       </body>
     </html>

@@ -88,7 +88,9 @@ export default async function vaultRoutes(fastify) {
             const [profile] = await db.select().from(companyProfiles)
                 .where(eq(companyProfiles.userId, user.userId));
             if (profile) {
-                let certs = JSON.parse(profile.certifications || '[]');
+                let certs = Array.isArray(profile.certifications)
+                    ? profile.certifications
+                    : (typeof profile.certifications === 'string' ? JSON.parse(profile.certifications || '[]') : []);
                 let updated = false;
                 const certMap = {
                     'iso_9001': 'ISO_9001',
@@ -105,7 +107,7 @@ export default async function vaultRoutes(fastify) {
                 if (updated) {
                     await db.update(companyProfiles)
                         .set({
-                        certifications: JSON.stringify(certs),
+                        certifications: certs,
                         scoringVersion: profile.scoringVersion + 1,
                         updatedAt: new Date(),
                     })

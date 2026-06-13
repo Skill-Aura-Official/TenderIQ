@@ -7,7 +7,7 @@ export default async function scraperRoutes(app) {
         if (!source) {
             return reply.code(400).send({ error: 'Missing source parameter (e.g., ?source=MH)' });
         }
-        const validSources = ['MH', 'UP', 'RJ', 'WB', 'MP'];
+        const validSources = ['MH', 'UP', 'RJ', 'WB', 'MP', 'KA', 'TN', 'GJ', 'TG', 'HR', 'PB', 'KL', 'AP'];
         if (!validSources.includes(source)) {
             return reply.code(400).send({ error: `Invalid source. Must be one of: ${validSources.join(', ')}` });
         }

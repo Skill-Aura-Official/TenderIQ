@@ -113,7 +113,9 @@ export default async function vaultRoutes(fastify: FastifyInstance) {
         .where(eq(companyProfiles.userId, user.userId));
 
       if (profile) {
-        let certs = JSON.parse(profile.certifications || '[]') as string[];
+        let certs = Array.isArray(profile.certifications) 
+          ? profile.certifications 
+          : (typeof profile.certifications === 'string' ? JSON.parse(profile.certifications || '[]') : []) as string[];
         let updated = false;
 
         const certMap: Record<string, string> = {
@@ -133,7 +135,7 @@ export default async function vaultRoutes(fastify: FastifyInstance) {
         if (updated) {
           await db.update(companyProfiles)
             .set({
-              certifications: JSON.stringify(certs),
+              certifications: certs,
               scoringVersion: profile.scoringVersion + 1,
               updatedAt: new Date(),
             })

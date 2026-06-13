@@ -4,10 +4,16 @@ import path from 'path';
 import cron from 'node-cron';
 import { pool } from '../lib/db.js';
 
-// Connection to Redis (Default locally, should be via ENV in prod)
+// Connection to Redis (Production: GCP Memorystore, Development: Local)
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10)
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  password: process.env.REDIS_PASSWORD || undefined,
+  // For GCP Memorystore, we might need TLS depending on the config
+  tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+  // Fail fast locally if Redis is down, allowing graceful dry-runs/mocks
+  maxRetriesPerRequest: process.env.REDIS_HOST ? null : 1,
+  enableOfflineQueue: process.env.REDIS_HOST ? true : false,
 };
 
 // Create the Queue
@@ -15,13 +21,13 @@ export const recommendationQueue = new Queue('recommendations', { connection });
 
 // Process the Queue
 const recommendationWorker = new Worker('recommendations', async job => {
-  const { company_id } = job.data;
-  console.log(`[BullMQ] Starting recommendation job for company_id: ${company_id}`);
+  const { company_id, limit } = job.data;
+  console.log(`[BullMQ] Starting recommendation job for company_id: ${company_id} with limit: ${limit}`);
   
   const scriptPath = path.join(process.cwd(), '../scraper/workers/recommendation_worker.py');
   
   return new Promise((resolve, reject) => {
-    const pythonProcess = spawn('python', [scriptPath, '--company_id', company_id.toString()]);
+    const pythonProcess = spawn('python', [scriptPath, '--company_id', company_id.toString(), '--limit', limit.toString()]);
     
     pythonProcess.stdout.on('data', (data) => {
       console.log(`[Python: RecWorker ${company_id}] ${data.toString().trim()}`);
@@ -32,12 +38,30 @@ const recommendationWorker = new Worker('recommendations', async job => {
     });
     
     pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log(`[BullMQ] Completed recommendation job for company_id: ${company_id}`);
-        resolve({ success: true });
-      } else {
-        reject(new Error(`Python worker exited with code ${code}`));
+      if (code !== 0) {
+        return reject(new Error(`Python recommendation worker exited with code ${code}`));
       }
+
+      console.log(`[BullMQ] Completed recommendation calculations for company_id: ${company_id}. Spawning summary worker...`);
+      const summaryScriptPath = path.join(process.cwd(), '../scraper/workers/summary_worker.py');
+      const summaryProcess = spawn('python', [summaryScriptPath, '--company_id', company_id.toString()]);
+
+      summaryProcess.stdout.on('data', (data) => {
+        console.log(`[Python: SumWorker ${company_id}] ${data.toString().trim()}`);
+      });
+      
+      summaryProcess.stderr.on('data', (data) => {
+        console.error(`[Python: SumWorker ${company_id} ERR] ${data.toString().trim()}`);
+      });
+
+      summaryProcess.on('close', (sumCode) => {
+        if (sumCode === 0) {
+          console.log(`[BullMQ] Completed summarization for company_id: ${company_id}`);
+          resolve({ success: true });
+        } else {
+          reject(new Error(`Python summary worker exited with code ${sumCode}`));
+        }
+      });
     });
   });
 }, { connection });
@@ -55,14 +79,30 @@ export function startRecommendationCron() {
     try {
       const client = await pool.connect();
       try {
-        // Fetch all active company profiles
-        const result = await client.query('SELECT id FROM company_profiles WHERE is_active = true');
+        // Fetch all active company profiles with their verification and subscription status
+        const result = await client.query(`
+          SELECT cp.id, cp.is_verified, u.subscription_tier
+          FROM company_profiles cp
+          JOIN users u ON cp.user_id = u.id
+        `);
         const companies = result.rows;
         
         console.log(`[BullMQ Cron] Enqueuing ${companies.length} company recommendation jobs...`);
         
         for (const company of companies) {
-          await recommendationQueue.add('calculate_recommendations', { company_id: company.id }, {
+          // Determine volume limit based on verification and subscription tier
+          const limits: Record<string, number> = {
+            free: company.is_verified ? 5 : 3,
+            starter: 25,
+            pro: 100,
+            enterprise: 200,
+          };
+          let limit = limits[company.subscription_tier] || 3;
+          
+          await recommendationQueue.add('calculate_recommendations', { 
+            company_id: company.id,
+            limit: limit
+          }, {
             attempts: 3,
             backoff: {
               type: 'exponential',

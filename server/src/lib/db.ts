@@ -10,7 +10,7 @@ const { Pool } = pg;
 // We assume DATABASE_URL is set in the environment or we use a default local connection
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/tenderiq';
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString,
 });
 

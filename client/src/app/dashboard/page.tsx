@@ -98,7 +98,7 @@ export default function TenderIQApp() {
     panNumber: '',
     msmeRegistered: false,
     incorporationYear: 2023,
-    annualTurnoverBand: '1-10Cr',
+    maxEmdCapacity: 200000,
     operatingStates: ['MH'],
     services: [] as string[],
     certifications: [] as string[],
@@ -570,17 +570,18 @@ export default function TenderIQApp() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">Annual Turnover Range</label>
-                      <select 
-                        value={onboardingProfile.annualTurnoverBand}
-                        onChange={(e) => setOnboardingProfile(prev => ({ ...prev, annualTurnoverBand: e.target.value }))}
-                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
-                      >
-                        <option value="<1Cr">Less than ₹1 Cr</option>
-                        <option value="1-10Cr">₹1 Cr to ₹10 Cr</option>
-                        <option value="10-100Cr">₹10 Cr to ₹100 Cr</option>
-                        <option value="100Cr+">More than ₹100 Cr</option>
-                      </select>
+                      <label className="block text-sm font-medium text-slate-700">
+                        Max EMD Capacity (INR)
+                        <span className="ml-2 text-slate-400 cursor-help" title="This is typically 2% of the tender value. E.g., if you can afford ₹2L EMD, you can bid on tenders up to ₹1Cr.">
+                          <Info className="inline h-4 w-4" />
+                        </span>
+                      </label>
+                      <input 
+                        type="number" 
+                        value={onboardingProfile.maxEmdCapacity}
+                        onChange={(e) => setOnboardingProfile(prev => ({ ...prev, maxEmdCapacity: parseInt(e.target.value, 10) || 0 }))}
+                        className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md sm:text-sm"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700">Minimum Tender Value Preference (INR)</label>

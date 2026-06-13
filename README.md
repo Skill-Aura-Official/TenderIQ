@@ -1,36 +1,43 @@
 # TenderIQ
 
-TenderIQ is an advanced platform for managing, analyzing, and scoring tenders. It utilizes intelligent scraping workers and evaluation pipelines to recommend and process tender documents effectively.
+**The Premium, AI-Powered Tender Discovery and Intelligence Platform.**
 
-## What's Done ✅
-- **Scraper Pipeline Structure**: Set up Python workers (`gepnic_scraper.py`, `embed_worker.py`) for extracting and parsing tender data.
-- **Scoring & Recommendation Engine**: Initial worker logic implemented (`scorer.py`, `recommendation_worker.py`) for matching and evaluating tender suitability.
-- **Server Architecture**: TypeScript/Node.js backend setup with basic routing and database schema.
-- **Client Foundation**: Next.js frontend initialized for the upcoming dashboard UI.
+TenderIQ is a next-generation SaaS product designed to revolutionize how businesses discover, analyze, and win government and private tenders. By leveraging advanced web scraping, vector embeddings, and LLM-driven insights, TenderIQ removes the manual grunt work from the bidding pipeline, helping contractors generate millions in revenue.
 
-## What's Next 🚀 (Roadmap)
-We are actively building out the core platform. Here are the immediate priorities for anyone looking to help:
+## 🚀 Current Status: Phase 1 (Foundation) Complete!
 
-1. **Scraping Pipeline Integration**:
-   - Connect the Python scraping workers directly to the backend database to automate continuous ingestion.
-   - Implement robust error handling, retries, and rate-limiting for the `gepnic_scraper.py`.
+The core foundation of TenderIQ has been successfully built and rigorously tested.
+We have officially completed **Implementation Plan 1 (Foundation)**.
 
-2. **Frontend Dashboard (Next.js)**:
-   - Build out the UI in the `client/` folder to display a feed of scored tenders.
-   - Create an admin panel to monitor scraper worker health and trigger manual scraping tasks.
+### Features Currently Live in the Codebase:
+*   **Comprehensive Scraper Orchestration:** Scrapes 13 distinct state portals + CPPP simultaneously using `Playwright` and dynamic IP bypasses.
+*   **Premium Next.js Frontend:** A high-converting, deeply aesthetic landing page, pricing interface, and robust onboarding flow.
+*   **Robust Payment & Billing:** Deep integration with Razorpay Webhooks to enforce paywalls and manage subscription tiers (Basic, Pro, Enterprise).
+*   **Vector Recommendation Engine:** Fastify backend utilizing BullMQ background workers and Drizzle ORM to match tender embeddings against company profiles.
+*   **CI/CD:** Automated Docker builds and Google Cloud Build configurations.
 
-3. **Match Engine Refinement**:
-   - Improve the accuracy of the recommendation engine (`server/src/services/matchEngine.ts`).
-   - Add comprehensive unit tests for the scoring algorithms in `scraper/workers/test_scorer.py`.
+---
 
-4. **Authentication & Document Vault**:
-   - Finalize the auth endpoints in the server and protect the frontend dashboard routes.
-   - Implement secure document storage logic for the Tender Vault feature.
+## 🔮 What's Next? (Our Master Plan)
 
-## Contributing 🤝
-We welcome contributions! Whether it's adding a new scraper, fixing a bug, or building out the UI, we'd love your help. 
+We are building a machine designed to generate ₹1Cr+ MRR. Here is our official roadmap:
 
-Please read our **[Contributing Guide](CONTRIBUTING.md)** for detailed instructions on how to set up the project locally, establish the environment, and submit your Pull Requests.
+### ⚡ Implementation Plan 2: GROWTH ENGINE (Up Next)
+We are introducing a Multi-Tiered AI Copilot to handle massive data interpretation:
+1.  **Tiered AI Models:** Gemini (Free Tier), GPT-4o-mini (Pro Tier), Claude 3.5 Sonnet (Enterprise Tier).
+2.  **L1 Rate Intelligence:** Scraping past awarded contracts to automatically predict the optimal winning bid price for any new tender.
+3.  **Enterprise Team Workspaces:** Multi-seat billing, granular permissions, and shared pipeline management.
 
-## Setup
-*See the [CONTRIBUTING.md](CONTRIBUTING.md) file for detailed local setup instructions for the Scraper, Server, and Client environments.*
+### 📈 Implementation Plan 3: SCALE & DOMINATION
+Expanding beyond the core app into a ubiquitous B2B tool:
+1.  **WhatsApp AI Bot (₹299/mo Add-On):** Instant tender alerts, deadline reminders, and natural language tender querying directly on WhatsApp.
+2.  **Consultant Partner Platform:** White-labeling our tool for established tender consultants to use with their own clients.
+3.  **TenderIQ Public API:** Charging enterprise ERP systems per-request to access our cleaned, structured, and vectorized tender database.
+
+---
+
+## 📁 Documentation
+For full technical details, please see our master plans stored in the `/docs` folder:
+*   [Implementation Plan 1: Foundation](./docs/Implementation_Plan_1_Foundation.md)
+*   [Implementation Plan 2: Growth Engine](./docs/Implementation_Plan_2_Growth_Engine.md)
+*   [Implementation Plan 3: Scale & Domination](./docs/Implementation_Plan_3_Scale_Domination.md)

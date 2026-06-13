@@ -46,6 +46,46 @@ def normalize_state(location_str):
     # or we could attempt advanced NER.
     return list(states)
 
+def extract_tender_value(detail_url, headers):
+    try:
+        if not detail_url.startswith("http"):
+            detail_url = "https://eprocure.gov.in" + detail_url
+        time.sleep(1) # Rate limit
+        resp = requests.get(detail_url, headers=headers, timeout=10, verify=False)
+        resp.raise_for_status()
+        detail_soup = BeautifulSoup(resp.text, 'html.parser')
+        
+        # Look for "Tender Value" or "Estimated Cost"
+        labels = detail_soup.find_all('td', class_='td_caption')
+        for label in labels:
+            text = label.text.strip().lower()
+            if 'tender value' in text or 'estimated cost' in text:
+                val_td = label.find_next_sibling('td')
+                if val_td:
+                    val_str = val_td.text.strip().replace(',', '').replace('INR', '').strip()
+                    try:
+                        return float(val_str)
+                    except ValueError:
+                        pass
+                        
+        # Fallback to EMD
+        for label in labels:
+            text = label.text.strip().lower()
+            if 'emd amount' in text:
+                val_td = label.find_next_sibling('td')
+                if val_td:
+                    val_str = val_td.text.strip().replace(',', '').replace('INR', '').strip()
+                    try:
+                        emd_val = float(val_str)
+                        if emd_val > 0:
+                            return emd_val / 0.02 # Extrapolate 2% EMD rule
+                    except ValueError:
+                        pass
+                        
+    except Exception as e:
+        pass
+    return 0.0
+
 def fetch_and_parse(max_pages=None):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -126,6 +166,14 @@ def fetch_and_parse(max_pages=None):
 
                 state_codes = normalize_state(org_name)
                 
+                # Extract detail URL if available
+                a_tag = cols[4].find('a')
+                detail_url = a_tag['href'] if a_tag and 'href' in a_tag.attrs else None
+                
+                estimated_value = 0.0
+                if detail_url:
+                    estimated_value = extract_tender_value(detail_url, headers)
+                
                 raw_text = f"Title: {title}\\nOrganisation: {org_name}\\nDeadline: {deadline_str}"
                 
                 tenders.append({
@@ -137,7 +185,7 @@ def fetch_and_parse(max_pages=None):
                     "rawText": raw_text,
                     "categoryCodes": json.dumps([]),
                     "stateCodes": json.dumps(state_codes),
-                    "estimatedValue": 0.0,
+                    "estimatedValue": estimated_value,
                     "submissionDeadline": deadline,
                     "documentOpenDate": datetime.now(),
                 })

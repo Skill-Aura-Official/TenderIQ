@@ -12,6 +12,10 @@ import pipelineRoutes from './routes/pipeline.js';
 import vaultRoutes from './routes/vault.js';
 import adminRoutes from './routes/admin.js';
 import scraperRoutes from './routes/scraper.js';
+import webhookRoutes from './routes/webhooks.js';
+import billingRoutes from './routes/billing.js';
+import { startRecommendationCron } from './workers/recommendation.js';
+import { startNotificationCron } from './workers/notification_worker.js';
 
 const app = fastify({ logger: true });
 
@@ -35,11 +39,13 @@ app.register(websocket);
 setupWebSockets(app);
 app.register(authRoutes, { prefix: '/api/v1/auth' });
 app.register(profileRoutes, { prefix: '/api/v1/users' });
+app.register(billingRoutes, { prefix: '/api/v1/billing' });
 app.register(tenderRoutes, { prefix: '/api/v1' });
 app.register(pipelineRoutes, { prefix: '/api/v1/pipeline' });
 app.register(vaultRoutes, { prefix: '/api/v1/vault' });
 app.register(adminRoutes, { prefix: '/api/v1' });
 app.register(scraperRoutes, { prefix: '/api/scraper' });
+app.register(webhookRoutes, { prefix: '/api/v1/webhooks' });
 
 // Health check (public, no auth required)
 app.get('/health', async () => {
@@ -50,6 +56,10 @@ export const start = async () => {
   try {
     console.log("Initializing database tables...");
     await initDb();
+
+    // Start background cron schedulers
+    startRecommendationCron();
+    startNotificationCron();
 
     await app.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`Server is running on http://localhost:${PORT}`);

@@ -1,73 +1,43 @@
 # Contributing to TenderIQ
 
-First off, thank you for considering contributing to TenderIQ! It's people like you that make this platform a great tool for analyzing and scoring tenders.
+Welcome to the TenderIQ development team! As we scale to become the premier AI-powered tender intelligence platform, we maintain strict standards for our codebase to ensure premium performance, extreme security, and massive scalability.
 
-## Project Architecture
+## 🚀 Development Roadmap
 
-The project is split into three main components:
-1. **`scraper/` (Python)**: Contains background workers and scrapers (e.g., `gepnic_scraper.py`, `recommendation_worker.py`) that fetch and process tender documents.
-2. **`server/` (TypeScript / Node.js)**: The backend API and match engine that handles data, user auth, and communicates with the scrapers.
-3. **`client/` (Next.js / React)**: The frontend user interface for displaying dashboards, scored tenders, and administrative tools.
+We have successfully completed **Implementation Plan 1 (Foundation)**. 
+We are currently focusing on **Implementation Plan 2 (Growth Engine)** and **Implementation Plan 3 (Scale & Domination)**. 
 
-## Getting Started
+Please read the official implementation plans located in the `docs/` directory before picking up any task.
 
-### 1. Fork & Clone
-Fork the repository and clone your fork locally:
-```bash
-git clone https://github.com/Skill-Aura-Official/TenderIQ.git
-cd TenderIQ
-```
+### High Priority Areas
+1. **Multi-LLM Integration**: Integrating Gemini, OpenAI, and Anthropic APIs seamlessly.
+2. **Scraper Expansion**: Hardening the `Playwright` bypasses for extremely strict government portals.
+3. **WhatsApp Bot Infrastructure**: Building the Twilio/WhatsApp Business API microservice.
 
-### 2. Local Setup
-You will need both Python and Node.js installed.
+## 🛠 Setup Instructions
 
-**For the Scraper (Python):**
-```bash
-cd scraper
-python -m venv venv
-source venv/bin/activate # (On Windows: venv\Scripts\activate)
-pip install -r requirements.txt
-```
+1. **Prerequisites**:
+   - Node.js v20+
+   - Python 3.10+
+   - PostgreSQL 16+ (with `pgvector` extension installed)
+   - Redis 6+ (or equivalent cloud instance)
 
-**For the Server (TypeScript):**
-```bash
-cd server
-npm install
-```
+2. **Installation**:
+   - Run `npm install` in both `/client` and `/server`.
+   - Run `pip install -r requirements.txt` in `/scraper`.
 
-**For the Client (Next.js):**
-```bash
-cd client
-npm install
-```
+3. **Database Setup**:
+   - We use Drizzle ORM. Run `npm run db:push` in the server directory. **Note: You must have the `pgvector` extension enabled in your Postgres instance for the schemas to generate correctly.**
 
-## How to Contribute
+## 🔒 Security & Data Leaks (CRITICAL)
 
-### 1. Pick an Issue
-Look at the open issues on the GitHub repository or the "What's Next" section in the `README.md`. If you have a new idea, please open an issue first to discuss it.
+We handle extremely sensitive B2B data, API keys (Razorpay, OpenAI, Claude), and production database credentials.
+**UNDER NO CIRCUMSTANCES should any `.env` file, database backup, or raw credential be committed to this repository.**
 
-### 2. Create a Branch
-Always create a new branch for your feature or bug fix:
-```bash
-git checkout -b feature/your-feature-name
-# or
-git checkout -b fix/your-bug-fix
-```
+- Always check your `git status` before committing.
+- Ensure `.env`, `.env.local`, and `*.db` files are strictly ignored in `.gitignore`.
+- If you accidentally leak a key, instantly rotate it in the respective provider's dashboard and notify the team lead.
 
-### 3. Make Your Changes
-- Ensure your code follows the existing style guidelines.
-- Add tests if you are creating new scoring logic or match engine features.
-- Update documentation if you are adding new environment variables or setup steps.
-
-### 4. Commit and Push
-```bash
-git add .
-git commit -m "Brief description of your change"
-git push origin feature/your-feature-name
-```
-
-### 5. Open a Pull Request
-Open a Pull Request against the `main` branch. Provide a clear description of what the PR does and link to any relevant issues.
-
-## What to Work On?
-Check out the `README.md` **What's Next 🚀** section for a detailed roadmap of features that currently need help, including frontend dashboard integration, scraper testing, and database connections!
+## 🎨 Design Philosophy
+*   **Aesthetics Matter**: If the UI doesn't look like a premium, $10,000/year enterprise tool, it's not ready. Avoid generic colors; use glassmorphism, micro-animations, and highly curated typography.
+*   **Performance is Key**: Tender documents are huge. Use pagination, lazy loading, and background workers (BullMQ) extensively to ensure the main thread never blocks.

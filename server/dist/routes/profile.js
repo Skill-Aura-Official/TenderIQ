@@ -1,6 +1,6 @@
 import { db } from '../lib/db.js';
-import { companyProfiles } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { companyProfiles, userTenderScores } from '../db/schema.js';
+import { eq, desc } from 'drizzle-orm';
 import { requireAuth } from '../lib/auth.js';
 import { createAuditLog } from '../lib/audit.js';
 export default async function profileRoutes(fastify) {
@@ -85,11 +85,28 @@ export default async function profileRoutes(fastify) {
      * Returns the scoring status for the authenticated user.
      */
     fastify.get('/me/score-status', async (request, reply) => {
-        return reply.send({
-            data: {
-                status: 'completed',
-                completedAt: new Date(),
+        const user = request.authUser;
+        try {
+            const [profile] = await db.select().from(companyProfiles)
+                .where(eq(companyProfiles.userId, user.userId));
+            if (!profile) {
+                return reply.send({ data: { status: 'pending', completedAt: null } });
             }
-        });
+            const [latestScore] = await db.select().from(userTenderScores)
+                .where(eq(userTenderScores.userId, user.userId))
+                .orderBy(desc(userTenderScores.scoredAt))
+                .limit(1);
+            const isStale = !latestScore || latestScore.profileVersion < profile.scoringVersion;
+            return reply.send({
+                data: {
+                    status: isStale ? 'processing' : 'completed',
+                    completedAt: latestScore?.scoredAt || null,
+                    profileVersion: profile.scoringVersion,
+                }
+            });
+        }
+        catch (err) {
+            return reply.code(500).send({ error: { message: err.message } });
+        }
     });
 }

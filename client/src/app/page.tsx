@@ -226,8 +226,12 @@ export default function LandingPage() {
               <div>
                 <h3 className="text-xl font-bold mb-2 text-slate-100">Starter</h3>
                 <p className="text-sm text-slate-400 mb-6">Perfect for small teams starting with government tenders.</p>
-                <div className="mb-6 flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-slate-200">Starter Tier</span>
+                <div className="mb-6 flex flex-col gap-1">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-extrabold text-slate-100">₹1,999</span>
+                    <span className="text-sm text-slate-500">/month</span>
+                  </div>
+                  <span className="text-xs text-slate-500">or ₹19,999/year (save ₹3,989)</span>
                 </div>
                 <div className="h-px bg-white/5 mb-6"></div>
                 <ul className="space-y-3.5 mb-8 text-sm text-slate-400">
@@ -249,8 +253,8 @@ export default function LandingPage() {
                   </li>
                 </ul>
               </div>
-              <Link href="/sign-up" className="w-full text-center py-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 font-medium transition-all text-sm block">
-                Request Pricing
+              <Link href="/sign-up?plan=starter" className="w-full text-center py-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 font-medium transition-all text-sm block">
+                Start Free Trial
               </Link>
             </div>
 
@@ -262,8 +266,12 @@ export default function LandingPage() {
               <div>
                 <h3 className="text-xl font-bold mb-2 text-slate-100">Professional</h3>
                 <p className="text-sm text-slate-400 mb-6">Best for growing businesses with active bidding pipelines.</p>
-                <div className="mb-6 flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-indigo-400">Professional Tier</span>
+                <div className="mb-6 flex flex-col gap-1">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-extrabold text-indigo-400">₹4,999</span>
+                    <span className="text-sm text-slate-500">/month</span>
+                  </div>
+                  <span className="text-xs text-slate-500">or ₹49,999/year (save ₹9,989)</span>
                 </div>
                 <div className="h-px bg-white/5 mb-6"></div>
                 <ul className="space-y-3.5 mb-8 text-sm text-slate-400">
@@ -289,8 +297,8 @@ export default function LandingPage() {
                   </li>
                 </ul>
               </div>
-              <Link href="/sign-up" className="w-full text-center py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white font-medium transition-all text-sm block shadow-lg shadow-indigo-500/20">
-                Request Pricing
+              <Link href="/sign-up?plan=pro" className="w-full text-center py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white font-medium transition-all text-sm block shadow-lg shadow-indigo-500/20">
+                Upgrade to Pro
               </Link>
             </div>
 
@@ -299,8 +307,12 @@ export default function LandingPage() {
               <div>
                 <h3 className="text-xl font-bold mb-2 text-slate-100">Enterprise</h3>
                 <p className="text-sm text-slate-400 mb-6">For large firms needing custom scrapers and API integrations.</p>
-                <div className="mb-6 flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-slate-200">Enterprise Tier</span>
+                <div className="mb-6 flex flex-col gap-1">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-extrabold text-slate-100">₹14,999</span>
+                    <span className="text-sm text-slate-500">/month</span>
+                  </div>
+                  <span className="text-xs text-slate-500">or ₹149,999/year (save ₹29,989)</span>
                 </div>
                 <div className="h-px bg-white/5 mb-6"></div>
                 <ul className="space-y-3.5 mb-8 text-sm text-slate-400">
@@ -326,7 +338,7 @@ export default function LandingPage() {
                   </li>
                 </ul>
               </div>
-              <Link href="mailto:sales@tenderiq.com" className="w-full text-center py-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 font-medium transition-all text-sm block">
+              <Link href="/sign-up?plan=enterprise" className="w-full text-center py-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 font-medium transition-all text-sm block">
                 Contact Sales
               </Link>
             </div>

@@ -7,8 +7,8 @@ from scorer import calculate_tender_score
 
 DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/tenderiq")
 
-def run_recommendations(company_id):
-    print(f"Running recommendations for company_id: {company_id}")
+def run_recommendations(company_id, limit):
+    print(f"Running recommendations for company_id: {company_id} with limit: {limit}")
     try:
         conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor(cursor_factory=DictCursor)
@@ -83,9 +83,9 @@ def run_recommendations(company_id):
             'semantic_sim': tender['semantic_similarity']
         })
         
-    # Sort and filter top 5 > 75
+    # Sort and filter top recommendations
     scored_tenders.sort(key=lambda x: x['score'], reverse=True)
-    top_recommendations = [t for t in scored_tenders if t['score'] > 75][:5]
+    top_recommendations = [t for t in scored_tenders if t['score'] > 75][:limit]
     
     print(f"\n--- Top Recommendations for Company {company_id} ---")
     for r in top_recommendations:
@@ -105,12 +105,21 @@ def run_recommendations(company_id):
     else:
         print("No tenders scored above the 75-point threshold.")
         
+    # Mark the recommendation batch as ready
+    cursor.execute("""
+        INSERT INTO recommendation_batches (company_id, status, created_at)
+        VALUES (%s, %s, NOW())
+    """, (company_id, 'ready'))
+    conn.commit()
+    print("Marked recommendation batch as ready.")
+        
     cursor.close()
     conn.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="BullMQ Recommendation Worker")
     parser.add_argument("--company_id", required=True, help="ID of the company profile")
+    parser.add_argument("--limit", type=int, default=5, help="Max number of recommendations to save")
     args = parser.parse_args()
     
-    run_recommendations(args.company_id)
+    run_recommendations(args.company_id, args.limit)

@@ -1,5 +1,5 @@
 import { db } from '../lib/db.js';
-import { tenders, userTenderScores, tenderAssignments } from '../db/schema.js';
+import { tenders, userTenderScores, tenderAssignments, recommendationFeedback, users, companyProfiles } from '../db/schema.js';
 import { eq, and, inArray } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../lib/auth.js';
 import { createAuditLog } from '../lib/audit.js';
@@ -27,6 +27,12 @@ const createTenderSchema = z.object({
 });
 const assignTenderSchema = z.object({
     targetUserId: z.string().min(1, 'Target user ID is required'),
+});
+const feedbackSchema = z.object({
+    recommendation_id: z.string().min(1, 'Recommendation ID is required'),
+    signal: z.enum(['saved', 'dismissed']),
+    tender_id: z.string().min(1, 'Tender ID is required'),
+    category_code: z.string().min(1, 'Category code is required'),
 });
 export default async function tenderRoutes(fastify) {
     // All tender routes require authentication
@@ -129,6 +135,41 @@ export default async function tenderRoutes(fastify) {
             else if (sort === 'value') {
                 results.sort((a, b) => (b.estimatedValue || 0) - (a.estimatedValue || 0));
             }
+            // Apply Paywall Limits & Masking for Free/Starter Tier users
+            const [dbUser] = await db.select().from(users).where(eq(users.id, user.userId));
+            const tier = dbUser?.subscriptionTier || 'free';
+            const tierLimits = {
+                free: 3,
+                starter: 25,
+                pro: null,
+                enterprise: null,
+            };
+            let limitCrop = tierLimits[tier] !== undefined ? tierLimits[tier] : 3;
+            if (tier === 'free') {
+                // Fetch company profile to check verification status for free tier bonus
+                const [profile] = await db.select().from(companyProfiles).where(eq(companyProfiles.userId, user.userId));
+                if (profile?.isVerified) {
+                    limitCrop = 5;
+                }
+            }
+            if (limitCrop !== null) {
+                // Cap the total results available to the user based on their tier
+                results = results.slice(0, limitCrop);
+            }
+            const maskSensitive = tier === 'free';
+            if (maskSensitive) {
+                // Mask critical fields for free users
+                results = results.map(r => ({
+                    ...r,
+                    emdAmount: null, // Mask EMD Amount
+                    rawPdfGcsKey: null, // Hide PDF key
+                    sourceUrl: '#', // Hide document links
+                    aiSummary: {
+                        physicalWorkRequired: 'Upgrade to Starter or Pro to view AI Match Analysis',
+                        preQualificationCriteria: 'Upgrade to Starter or Pro to view AI Match Analysis'
+                    }
+                }));
+            }
             // Enforce maximum page size to prevent database DOS
             const limit = Math.min(parseInt(query.limit || '100', 10), 100);
             const offset = parseInt(query.offset || '0', 10);
@@ -173,7 +214,23 @@ export default async function tenderRoutes(fastify) {
                     return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'You are not assigned to this tender' } });
                 }
             }
-            return reply.send({ data: mapTenderResult(item) });
+            let mapped = mapTenderResult(item);
+            const [dbUser] = await db.select().from(users).where(eq(users.id, user.userId));
+            const tier = dbUser?.subscriptionTier || 'free';
+            const maskSensitive = tier === 'free';
+            if (maskSensitive) {
+                mapped = {
+                    ...mapped,
+                    emdAmount: null,
+                    rawPdfGcsKey: null,
+                    sourceUrl: '#',
+                    aiSummary: {
+                        physicalWorkRequired: 'Upgrade to Starter or Pro to view AI Match Analysis',
+                        preQualificationCriteria: 'Upgrade to Starter or Pro to view AI Match Analysis'
+                    }
+                };
+            }
+            return reply.send({ data: mapped });
         }
         catch (err) {
             return reply.code(500).send({ error: { message: err.message } });
@@ -263,6 +320,33 @@ export default async function tenderRoutes(fastify) {
             await createAuditLog(request, 'assign', 'tender', id, { targetUserId });
             broadcastToOrg(user.orgId, 'tender_assigned', { targetUserId });
             return reply.code(201).send({ data: { success: true, assignmentId } });
+        }
+        catch (err) {
+            return reply.code(500).send({ error: { message: err.message } });
+        }
+    });
+    /**
+     * POST /api/v1/tenders/feedback
+     * Submit feedback (saved/dismissed) for a recommendation
+     */
+    fastify.post('/tenders/feedback', async (request, reply) => {
+        const user = request.authUser;
+        let body;
+        try {
+            body = feedbackSchema.parse(request.body);
+        }
+        catch (err) {
+            return reply.code(400).send({ error: { message: 'Validation failed', details: err.errors } });
+        }
+        try {
+            await db.insert(recommendationFeedback).values({
+                recommendationId: body.recommendation_id,
+                userId: user.userId,
+                signal: body.signal,
+                categoryCode: body.category_code,
+                createdAt: new Date()
+            });
+            return reply.code(201).send({ data: { success: true } });
         }
         catch (err) {
             return reply.code(500).send({ error: { message: err.message } });

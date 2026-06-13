@@ -107,7 +107,7 @@ export default function OnboardingPage() {
           <div className="absolute top-0 left-0 w-full h-1 bg-gray-800">
             <div 
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-500 ease-out"
-              style={{ width: \`\${(step / 3) * 100}%\` }}
+              style={{ width: `${(step / 3) * 100}%` }}
             />
           </div>
 
@@ -126,7 +126,7 @@ export default function OnboardingPage() {
           <form className="space-y-8 relative" onSubmit={e => e.preventDefault()}>
             
             {/* STEP 1 */}
-            <div className={\`transition-all duration-500 \${step === 1 ? 'opacity-100 translate-x-0 relative' : 'opacity-0 -translate-x-full absolute pointer-events-none'}\`}>
+            <div className={`transition-all duration-500 ${step === 1 ? 'opacity-100 translate-x-0 relative' : 'opacity-0 -translate-x-full absolute pointer-events-none'}`}>
               <div className="space-y-6">
                 <div>
                   <label htmlFor="companyName" className="flex items-center text-sm font-medium text-gray-300 mb-2">
@@ -183,7 +183,7 @@ export default function OnboardingPage() {
             </div>
 
             {/* STEP 2 */}
-            <div className={\`transition-all duration-500 \${step === 2 ? 'opacity-100 translate-x-0 relative' : 'opacity-0 translate-x-full absolute pointer-events-none'}\`}>
+            <div className={`transition-all duration-500 ${step === 2 ? 'opacity-100 translate-x-0 relative' : 'opacity-0 translate-x-full absolute pointer-events-none'}`}>
               <div className="space-y-6">
                 <div>
                   <label htmlFor="operatingStates" className="flex items-center text-sm font-medium text-gray-300 mb-2">
@@ -214,7 +214,7 @@ export default function OnboardingPage() {
             </div>
 
             {/* STEP 3 */}
-            <div className={\`transition-all duration-500 \${step === 3 ? 'opacity-100 translate-x-0 relative' : 'opacity-0 translate-x-full absolute pointer-events-none'}\`}>
+            <div className={`transition-all duration-500 ${step === 3 ? 'opacity-100 translate-x-0 relative' : 'opacity-0 translate-x-full absolute pointer-events-none'}`}>
               <div className="space-y-6">
                 <div>
                   <label htmlFor="pastClientTypes" className="flex items-center text-sm font-medium text-gray-300 mb-2">
@@ -247,7 +247,7 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 onClick={prevStep}
-                className={\`px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 \${step === 1 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:text-white hover:bg-gray-800'}\`}
+                className={`px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${step === 1 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
               >
                 Back
               </button>

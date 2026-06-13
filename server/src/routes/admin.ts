@@ -1,9 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import { requireAuth, requireRole } from '../lib/auth.js';
 import { db } from '../lib/db.js';
-import { users, tenders } from '../db/schema.js';
+import { users, tenders, companyProfiles, vaultDocuments } from '../db/schema.js';
 import { count, eq, gte } from 'drizzle-orm';
 import { scrapePublicTenders } from '../services/scraper.js';
+import { createAuditLog } from '../lib/audit.js';
+
 export default async function adminRoutes(fastify: FastifyInstance) {
   // All admin routes require authentication and the 'admin' role
   fastify.addHook('preHandler', requireAuth);
@@ -69,6 +71,96 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     try {
       const result = await scrapePublicTenders();
       return reply.send({ data: result });
+    } catch (err: any) {
+      return reply.code(500).send({ error: { message: err.message } });
+    }
+  });
+
+  /**
+   * GET /api/v1/admin/verification/pending
+   * Returns all pending verification company profiles in the database.
+   */
+  fastify.get('/admin/verification/pending', async (request, reply) => {
+    try {
+      const pendingCompanies = await db
+        .select({
+          id: companyProfiles.id,
+          companyName: companyProfiles.companyName,
+          gstNumber: companyProfiles.gstNumber,
+          panNumber: companyProfiles.panNumber,
+          msmeRegistered: companyProfiles.msmeRegistered,
+          isVerified: companyProfiles.isVerified,
+          email: users.email,
+          updatedAt: companyProfiles.updatedAt,
+        })
+        .from(companyProfiles)
+        .innerJoin(users, eq(companyProfiles.userId, users.id))
+        .where(eq(companyProfiles.isVerified, false));
+
+      return reply.send({ data: pendingCompanies });
+    } catch (err: any) {
+      return reply.code(500).send({ error: { message: err.message } });
+    }
+  });
+
+  /**
+   * POST /api/v1/admin/verification/:id/approve
+   * Approves verification for a company profile.
+   */
+  fastify.post('/admin/verification/:id/approve', async (request, reply) => {
+    const { id } = request.params as any;
+    try {
+      const [profile] = await db
+        .select()
+        .from(companyProfiles)
+        .where(eq(companyProfiles.id, id));
+
+      if (!profile) {
+        return reply.code(404).send({ error: { code: 'PROFILE_NOT_FOUND', message: 'Company profile not found' } });
+      }
+
+      await db
+        .update(companyProfiles)
+        .set({
+          isVerified: true,
+          scoringVersion: profile.scoringVersion + 1, // trigger scoring re-evaluation on next runs
+          updatedAt: new Date(),
+        })
+        .where(eq(companyProfiles.id, id));
+
+      await createAuditLog(request, 'approve', 'user', profile.userId, { companyProfileId: id });
+
+      return reply.send({ data: { success: true, message: 'Company successfully verified' } });
+    } catch (err: any) {
+      return reply.code(500).send({ error: { message: err.message } });
+    }
+  });
+
+  /**
+   * POST /api/v1/admin/verification/:id/reject
+   * Rejects verification for a company profile.
+   */
+  fastify.post('/admin/verification/:id/reject', async (request, reply) => {
+    const { id } = request.params as any;
+    try {
+      const [profile] = await db
+        .select()
+        .from(companyProfiles)
+        .where(eq(companyProfiles.id, id));
+
+      if (!profile) {
+        return reply.code(404).send({ error: { code: 'PROFILE_NOT_FOUND', message: 'Company profile not found' } });
+      }
+
+      await db
+        .update(companyProfiles)
+        .set({
+          isVerified: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(companyProfiles.id, id));
+
+      return reply.send({ data: { success: true, message: 'Company verification rejected' } });
     } catch (err: any) {
       return reply.code(500).send({ error: { message: err.message } });
     }
