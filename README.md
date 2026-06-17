@@ -1,43 +1,55 @@
 # TenderIQ
 
-**The Premium, AI-Powered Tender Discovery and Intelligence Platform.**
+**The Premium, AI-Powered Tender Discovery, Scoring, and Bidding Intelligence Platform.**
 
-TenderIQ is a next-generation SaaS product designed to revolutionize how businesses discover, analyze, and win government and private tenders. By leveraging advanced web scraping, vector embeddings, and LLM-driven insights, TenderIQ removes the manual grunt work from the bidding pipeline, helping contractors generate millions in revenue.
-
-## 🚀 Current Status: Phase 1 (Foundation) Complete!
-
-The core foundation of TenderIQ has been successfully built and rigorously tested.
-We have officially completed **Implementation Plan 1 (Foundation)**.
-
-### Features Currently Live in the Codebase:
-*   **Comprehensive Scraper Orchestration:** Scrapes 13 distinct state portals + CPPP simultaneously using `Playwright` and dynamic IP bypasses.
-*   **Premium Next.js Frontend:** A high-converting, deeply aesthetic landing page, pricing interface, and robust onboarding flow.
-*   **Robust Payment & Billing:** Deep integration with Razorpay Webhooks to enforce paywalls and manage subscription tiers (Basic, Pro, Enterprise).
-*   **Vector Recommendation Engine:** Fastify backend utilizing BullMQ background workers and Drizzle ORM to match tender embeddings against company profiles.
-*   **CI/CD:** Automated Docker builds and Google Cloud Build configurations.
+TenderIQ is a next-generation B2B SaaS platform designed to revolutionize how businesses discover, analyze, and win government and private tenders. By leveraging advanced web scraping, vector embeddings, multi-tiered LLMs, and historical pricing intelligence, TenderIQ automates the complex bidding pipeline, enabling contractors and MSMEs to maximize win rates and accelerate revenue growth.
 
 ---
 
-## 🔮 What's Next? (Our Master Plan)
+## 🚀 Current Status: Phase 1 & Phase 2 (Growth Engine) Complete!
 
-We are building a machine designed to generate ₹1Cr+ MRR. Here is our official roadmap:
+We have successfully implemented and compiled the first two core horizons, including a comprehensive cybersecurity hardening pass (**Project Vajra-Shield**).
 
-### ⚡ Implementation Plan 2: GROWTH ENGINE (Up Next)
-We are introducing a Multi-Tiered AI Copilot to handle massive data interpretation:
-1.  **Tiered AI Models:** Gemini (Free Tier), GPT-4o-mini (Pro Tier), Claude 3.5 Sonnet (Enterprise Tier).
-2.  **L1 Rate Intelligence:** Scraping past awarded contracts to automatically predict the optimal winning bid price for any new tender.
-3.  **Enterprise Team Workspaces:** Multi-seat billing, granular permissions, and shared pipeline management.
+### ⚡ Live Platform Features:
 
-### 📈 Implementation Plan 3: SCALE & DOMINATION
-Expanding beyond the core app into a ubiquitous B2B tool:
-1.  **WhatsApp AI Bot (₹299/mo Add-On):** Instant tender alerts, deadline reminders, and natural language tender querying directly on WhatsApp.
-2.  **Consultant Partner Platform:** White-labeling our tool for established tender consultants to use with their own clients.
-3.  **TenderIQ Public API:** Charging enterprise ERP systems per-request to access our cleaned, structured, and vectorized tender database.
+#### 1. Advanced Scraping & Data Orchestration (Phase 1)
+- **Multi-Portal Scraping:** Orchestrates parallel scraping of 13 state portals (Maharashtra, Karnataka, Tamil Nadu, Uttar Pradesh, etc.) and the Central Public Procurement Portal (CPPP) using Playwright stealth routines.
+- **Data Quality Gates:** Automated verification pipelines to ensure 100% state code coverage and minimal null fields before ingestion.
+
+#### 2. Multi-Tiered AI Bid Copilot (Phase 2)
+- **Plan-Based LLM Routing:** Enforces model execution by subscription tier—Gemini (Starter), GPT-4o-mini (Pro), and Claude 3.5 Sonnet (Enterprise).
+- **Interactive Chat & Proposal Generation:** Slide-out drawer with streaming responses, conversation history storage, markdown proposal compiler, and HTML-packaged Microsoft Word (.doc) exports.
+
+#### 3. L1 Pricing Intelligence (Phase 2)
+- **CPPP Awards Scraper:** Python crawler compiling public contract results data.
+- **Guidance Engine:** Real-time recommendations predicting competitor win counts, bidder density, and recommended L1 bidding price range (awarded amount/estimated value) based on historical contracts.
+
+#### 4. Team Workspaces & Referral Loop (Phase 2)
+- **Multi-Seat Seating:** Role-Based Access Controls (RBAC) supporting invitations (Admin, Manager, Contributor, Viewer) and seat capacity enforcement.
+- **Viral Referral Engine:** Unique referral link generation, click tracking, and performance statistics dashboard.
+
+#### 5. Project Vajra-Shield (Level 3 Cybersecurity Hardening)
+- **Throttling & Scanners Ban:** Sliding-window rate limiters and an IP-Scanner Autoban hook that blacklists clients requesting security configurations (`.env`, `.git/config`, etc.).
+- **IDOR / BOLA Prevention:** Row-Level security mapping in Fastify routing that scopes all resource queries to the authenticated user's `orgId` and `userId`.
+- **AI Security:** Wrap tender inputs in strict boundaries (`=== BEGIN TENDER DOCUMENT ===`) and implement system instructions isolators. Includes **AI Output Leak Filters** that scan response streams and block prompt exposures.
+- **Scraper Domain Whitelists:** Scrapers verify destination URLs against a verified suffix list (`*.gov.in`) and sanitize text elements against HTML script injections.
+- **CI/CD Security Gating:** Cloud Run deployments fail if dependencies present vulnerabilities via `npm audit --audit-level=high` checks.
 
 ---
 
-## 📁 Documentation
-For full technical details, please see our master plans stored in the `/docs` folder:
-*   [Implementation Plan 1: Foundation](./docs/Implementation_Plan_1_Foundation.md)
-*   [Implementation Plan 2: Growth Engine](./docs/Implementation_Plan_2_Growth_Engine.md)
-*   [Implementation Plan 3: Scale & Domination](./docs/Implementation_Plan_3_Scale_Domination.md)
+## 🔮 Upcoming Horizon: Scale & Domination (Phase 3)
+
+We are building a highly integrated B2B procurement ecosystem:
+1. **Interactive WhatsApp Bot:** Instant tender alerts, deadline reminders, and natural language query interactions via Wati integrations.
+2. **Reseller White-label Platform:** Custom domains, Let's Encrypt SSL routing, and dynamic reseller branding overlays for partner CA/legal firms.
+3. **Public API & Webhook Dispatch:** Secure cryptographically hashed API tokens and HMAC-SHA256 outbound webhooks with exponential backoff retry queues.
+4. **On-Demand Regionalization:** dynamic translations (Hindi, Marathi, Tamil, etc.) of tender summaries powered by Gemini on-demand translation layers.
+
+---
+
+## 📁 Project Documentation
+
+Detailed design specifications and implementation roadmaps are available in the `/docs` folder:
+- [Implementation Plan 1: Foundation](./docs/Implementation_Plan_1_Foundation.md)
+- [Implementation Plan 2: Growth Engine](./docs/Implementation_Plan_2_Growth_Engine.md)
+- [Implementation Plan 3: Scale & Domination](./docs/Implementation_Plan_3_Scale_Domination.md)

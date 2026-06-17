@@ -1,35 +1,33 @@
-# Implementation Plan 3: SCALE & DOMINATION
+# Implementation Plan 3: SCALE & DOMINATION (Project Vistar)
 ## *"From SaaS to Ecosystem"*
 
 **Codename:** Project Vistar (विस्तार — Expansion)  
 **Timeline:** 12 weeks (starts after Plan 2)  
-**Goal:** Expand addressable market 10x, secure channel partners, and embed into enterprise workflows  
-**Outcome:** WhatsApp Bot, White-label Partner Platform, Public API, Regional Languages  
+**Goal:** Expand addressable market 10x, secure channel partners, and embed into enterprise workflows.  
+**Outcome:** Secured WhatsApp Bot, Reseller White-label Platform, Enterprise-grade Public API, Outgoing Webhook Engine, Regional Languages.
 
 ---
 
 ## User Review Required
 
-> [!NOTE]
-> **Strategic decisions finalized:**
-> - **WhatsApp Pricing:** Positioned as an affordable add-on at **₹299/mo** across all non-Enterprise tiers (Enterprise gets it included).
-> - **White-label Pricing:** Revenue share model (e.g., 20-30% of their clients' fees) plus a one-time setup fee to cover domain/branding configuration.
-> - **API Limits:** Standard 100 req/min for Enterprise tier. "Enterprise+" custom tiers can negotiate higher limits.
+> [!IMPORTANT]
+> **Key Architecture Decisions for Resellers & APIs:**
+> - **Domain Routing & SSL:** Custom domains (e.g., `tenders.mycafirm.com`) require dynamic SSL termination. We will integrate a reverse proxy (e.g., Caddy or Cloudflare for SaaS) to auto-provision Let's Encrypt certificates.
+> - **Outbound Webhook Failures:** To prevent blocking main execution threads, outbound webhooks will use an asynchronous queue with exponential backoff. Retries will execute at 1m, 5m, 15m, 1h, and 6h before sending requests to a Dead Letter Queue (DLQ).
+> - **On-Demand AI Translation:** To minimize Gemini API token consumption and database bloat, tender summaries will be generated in English and translated to regional languages (Hindi, Marathi, Tamil, etc.) *on-demand* and cached.
 
 ---
 
 ## Proposed Changes
 
----
+### Feature 1: Two-Way Interactive WhatsApp Bot (Wati Integration)
 
-### Feature 1: Interactive WhatsApp Bot (Engagement & Retention)
-
-*Moving from one-way alerts to two-way interactions.*
+*Moving from passive alerts to interactive conversational query resolution.*
 
 #### [MODIFY] [schema.ts](file:///c:/Users/jatin%20dalal/Downloads/Skillaura%20Products/TenderIq/server/src/db/schema.ts)
 
 ```typescript
-// WhatsApp Interactions
+// WhatsApp Interactions Tracker
 export const whatsappInteractions = pgTable('whatsapp_interactions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').references(() => users.id).notNull(),
@@ -43,206 +41,252 @@ export const whatsappInteractions = pgTable('whatsapp_interactions', {
 
 #### [NEW] `server/src/routes/whatsapp_webhook.ts`
 
+Handles incoming webhook payloads from Wati (or Meta directly) with strict signature verification:
+
 ```typescript
+import { FastifyInstance } from 'fastify';
+import crypto from 'crypto';
+import { db } from '../lib/db.js';
+import { users, whatsappInteractions } from '../db/schema.js';
+import { rateLimit } from '../lib/rateLimit.js';
+
 export default async function whatsappWebhookRoutes(fastify: FastifyInstance) {
   /**
-   * POST /api/v1/webhooks/wati
+   * POST /api/v1/webhooks/whatsapp/wati
    * Receives incoming messages from users via Wati
    */
-  fastify.post('/wati', async (request, reply) => {
-    // 1. Verify Wati webhook signature
-    // 2. Extract phone number and message text
-    // 3. Look up user by phone number (via Clerk or users table)
-    // 4. Parse intent using simple regex or lightweight LLM (e.g., "Find IT tenders in Delhi")
-    // 5. Execute action:
-    //    - If "Search": Query tenders, format top 3 results, send reply
-    //    - If "Pipeline": Query pipeline stages, summarize, send reply
-    //    - If "Help": Send menu of commands
-    // 6. Log interaction in `whatsappInteractions`
+  fastify.post('/wati', { preHandler: [rateLimit(20, 60000)] }, async (request, reply) => {
+    // 1. Secure Hook: Verify Wati webhook HMAC SHA-256 signature
+    const signature = request.headers['x-wati-signature'] as string;
+    const signingSecret = process.env.WATI_SIGNING_SECRET;
+    
+    if (signingSecret && signature) {
+      const computed = crypto
+        .createHmac('sha256', signingSecret)
+        .update(JSON.stringify(request.body))
+        .digest('hex');
+      if (computed !== signature) {
+        return reply.code(401).send({ error: 'Invalid webhook signature' });
+      }
+    }
+
+    const { senderNumber, text: messageText } = request.body as any;
+    if (!senderNumber || !messageText) {
+      return reply.code(400).send({ error: 'Missing payload parameters' });
+    }
+
+    // 2. Identify Tenant User
+    const normalizedPhone = senderNumber.replace(/[^0-9]/g, '');
+    const [user] = await db.select().from(users).where(eq(users.phoneNumber, normalizedPhone)).limit(1);
+    if (!user) {
+      // In prod, send a generic template inviting them to subscribe to TenderIQ
+      return reply.send({ success: false, message: 'Unrecognized contact number' });
+    }
+
+    // 3. Process Intent (輕量 LLM Parser or Regex)
+    let intent = 'unknown';
+    let replyText = '';
+    
+    if (/find|search|tender/i.test(messageText)) {
+      intent = 'search';
+      // Execute query on tenders and build markdown response containing top 3 recommendations
+    } else if (/pipeline|status/i.test(messageText)) {
+      intent = 'pipeline_status';
+      // Query pipelineStages table and summarize
+    } else {
+      intent = 'help';
+      replyText = 'TenderIQ Bot Menu:\n1. Reply with "Search <keywords>" to find tenders\n2. Reply "Pipeline" to view active pipeline matches.';
+    }
+
+    // 4. Log Interaction for Audits & Analytics
+    await db.insert(whatsappInteractions).values({
+      userId: user.id,
+      phoneNumber: normalizedPhone,
+      messageType: 'incoming',
+      content: messageText,
+      intent
+    });
+
+    return reply.send({ success: true, response: replyText });
   });
 }
 ```
 
-#### [MODIFY] [app.ts](file:///c:/Users/jatin%20dalal/Downloads/Skillaura%20Products/TenderIq/server/src/app.ts)
-
-```diff
-+ import whatsappWebhookRoutes from './routes/whatsapp_webhook.js';
-  // ...
-+ app.register(whatsappWebhookRoutes, { prefix: '/api/v1/webhooks/whatsapp' });
-```
-
 ---
 
-### Feature 2: Partner / White-label Platform (₹50K-₹5L/mo per partner)
+### Feature 2: Reseller / White-label Platform (Tenant Isolation)
 
-*Enabling CA firms and industry associations to resell TenderIQ.*
+*Enabling partners (e.g., CA firms, legal associations) to offer TenderIQ under their own brand.*
 
 #### [MODIFY] [schema.ts](file:///c:/Users/jatin%20dalal/Downloads/Skillaura%20Products/TenderIq/server/src/db/schema.ts)
 
 ```typescript
-// Partner Organizations (The resellers)
+// Reseller Partners Table
 export const partners = pgTable('partners', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  domain: text('domain').unique(), // Custom domain (e.g., tenders.mycafirm.com)
+  domain: text('domain').unique(), // e.g., 'tenders.mycafirm.com'
   brandingConfig: text('branding_config'), // JSON: { logoUrl, primaryColor, name }
   revenueSharePercent: integer('revenue_share_percent').default(20),
   stripeConnectAccountId: text('stripe_connect_account_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// Link client organizations to partners
+// Modify Organizations to support reseller tenancy
 export const organizations = pgTable('organizations', {
   // ... existing fields
-  partnerId: uuid('partner_id').references(() => partners.id), // Null if direct customer
+  partnerId: uuid('partner_id').references(() => partners.id, { onDelete: 'set null' }), // Null = direct TenderIQ user
 });
 ```
 
 #### [NEW] `server/src/routes/partner.ts`
 
+Provides resellers access to configure branding and view client statistics:
+
 ```typescript
 export default async function partnerRoutes(fastify: FastifyInstance) {
-  // Require 'partner_admin' role
+  // Enforce preHandler check: Verify user is a partner administrator
   
   /**
    * GET /api/v1/partner/dashboard
-   * Metrics: Total client orgs, active users, MRR generated, commission earned
+   * Summarizes partner revenue, active tenants, and billing cycles
    */
-
-  /**
-   * POST /api/v1/partner/clients
-   * Provision a new client organization under the partner
-   */
-
+  
   /**
    * PATCH /api/v1/partner/branding
-   * Update white-label settings (colors, logo, custom domain)
+   * Mutates brandingConfig (logo, primaryColor, name) and dynamic domain endpoints
    */
 }
 ```
 
-#### [NEW] `client/src/middleware.ts`
+#### [MODIFY] `client/src/middleware.ts`
 
-Handle custom domain routing for white-label partners:
-- Intercept requests
-- Check host domain
-- If custom domain, fetch branding config and apply to UI context
-- Rewrite request to appropriate tenant path
+- Read incoming request hostname.
+- If hostname matches a registered reseller domain, rewrite path header to include the tenant context (e.g., `/partner/[partnerId]/dashboard`).
+- Render custom UI styling (colors, title, logo) loaded from partner config caching layers.
 
 ---
 
-### Feature 3: API & Webhooks for Enterprise Integration
+### Feature 3: Enterprise Public API & Webhook Dispatcher
 
-*Embedding TenderIQ into corporate ERPs (SAP, Oracle) and CRMs (Salesforce).*
+*Enabling customers to sync tenders, matches, and pipeline events directly to ERPs/CRMs.*
 
 #### [MODIFY] [schema.ts](file:///c:/Users/jatin%20dalal/Downloads/Skillaura%20Products/TenderIq/server/src/db/schema.ts)
 
 ```typescript
-// API Keys
+// Secure hashed API keys
 export const apiKeys = pgTable('api_keys', {
   id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').references(() => organizations.id).notNull(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   name: text('name').notNull(),
-  keyHash: text('key_hash').notNull(), // Hashed key for security
+  keyHash: text('key_hash').notNull(), // Hashed key representation (SHA-256)
   prefix: text('prefix').notNull(),    // e.g., 'tiq_live_'
+  isActive: boolean('is_active').default(true).notNull(),
   lastUsedAt: timestamp('last_used_at'),
   expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// Webhook Subscriptions (Outbound)
+// Outbound Webhook Subscriptions
 export const webhookSubscriptions = pgTable('webhook_subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').references(() => organizations.id).notNull(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   url: text('url').notNull(),
-  events: text('events').array().notNull(), // ['tender.matched', 'pipeline.updated']
-  secret: text('secret').notNull(),         // For payload signature
-  isActive: boolean('is_active').default(true),
+  secret: text('secret').notNull(), // Shared secret for HMAC-SHA256 signatures
+  events: text('events').notNull(), // JSON array: e.g., '["tender.matched", "pipeline.stage_updated"]'
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+```
+
+#### [NEW] `server/src/lib/webhookDispatcher.ts`
+
+Asynchronously dispatches webhook payloads, appending a signature for data integrity:
+
+```typescript
+import crypto from 'crypto';
+import fetch from 'node-fetch';
+
+export async function dispatchWebhook(url: string, secret: string, event: string, payload: any) {
+  const body = JSON.stringify({ event, timestamp: Date.now(), data: payload });
+  
+  // Compute signature (HMAC-SHA256)
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(body)
+    .digest('hex');
+
+  // Push to async execution queue or dispatch directly with timeout
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-TenderIQ-Signature': signature,
+        'User-Agent': 'TenderIQ-Webhook-Bot/1.0'
+      },
+      body,
+      timeout: 5000 // 5-second max wait
+    });
+    
+    return res.ok;
+  } catch (err) {
+    // Queue retry job on failure (exponential backoff)
+    return false;
+  }
+}
 ```
 
 #### [NEW] `server/src/routes/public_api.ts`
 
-The developer-facing REST API:
+Exposes search and download capabilities to external platforms:
 
 ```typescript
 export default async function publicApiRoutes(fastify: FastifyInstance) {
-  // Middleware to validate API keys (Bearer token)
-  
-  /**
-   * GET /api/public/v1/tenders
-   * Search tenders (supports pagination, filtering by state/category/value)
-   */
-
-  /**
-   * GET /api/public/v1/tenders/:id
-   * Get full tender details including AI summary and eligibility
-   */
-
-  /**
-   * POST /api/public/v1/pipeline
-   * Sync a tender to an external CRM
-   */
+  // Apply api key extraction and verification middleware
+  // Track rate limiting: enforce X-RateLimit-Limit, X-RateLimit-Remaining headers
 }
 ```
 
 ---
 
-### Feature 4: Regional Language Support (10x Addressable Market)
+### Feature 4: Regional Language Support & On-Demand Translation
 
-*Translating the UI and tender summaries to Hindi, Marathi, Tamil, etc.*
+*Expanding the addressable market across India by supporting native languages.*
 
 #### [NEW] `client/src/i18n/`
+- Introduce `next-i18next` localized string configurations for English, Hindi (hi), Marathi (mr), and Tamil (ta).
+- Navbar UI language toggle.
 
-Implement Next.js Internationalization (i18n):
-- `en.json`, `hi.json`, `mr.json`, `ta.json`
-- Wrap text components with translation hooks (`useTranslation`)
-- Add language switcher to Navbar
+#### [MODIFY] `server/src/services/translation.ts` (Or worker layers)
+- When a regional user requests a tender summary page, check if the summary cache contains their translation locale.
+- If not, invoke Gemini to translate the English summary into target language, save translation in DB context, and return:
+  ```json
+  {
+    "tenderId": "...",
+    "locale": "hi",
+    "translatedSummary": { ... }
+  }
+  ```
 
-#### [MODIFY] `scraper/workers/summary_worker.py`
+---
 
-Instruct Gemini to generate summaries in the requested language (or store multiple translations):
+## Database Indexing Optimizations
 
-```diff
-- prompt = f"You are a civil engineering bid consultant..."
-+ prompt = f"""You are a civil engineering bid consultant. 
-+ Extract and summarize:
-+ 1. The exact physical work...
-+ 2. The most strict technical...
-+ 
-+ Provide the response in both English and Hindi.
-+ Format: {{"en": {{"physicalWork": "...", ...}}, "hi": {{"physicalWork": "...", ...}}}}"""
-```
+To prepare the database for the scale increase, we will add the following non-breaking indexes in schema initialization:
+- `api_keys(key_hash)` for O(1) API credential validation.
+- `organizations(partner_id)` for tenant resellers scoping queries.
+- `webhook_subscriptions(org_id)` for quick outbound dispatch lookups.
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-```bash
-# Webhook dispatch tests
-npm run test -- --grep "webhooks.outbound"
+### Automated Testing Suite
+- **Public API Tests:** Assert `401 Unauthorized` for invalid API tokens, assert rate limiting headers on bulk hits.
+- **Webhook Dispatch Tests:** Mock local listener, dispatch event, assert validation of signature header matches local secret.
 
-# Public API rate limiting and auth tests
-npm run test -- --grep "public_api"
-```
-
-### Manual Verification
-- [ ] Send "Search IT tenders in UP" to the WhatsApp sandbox number → receive formatted list of 3 tenders
-- [ ] Create a Partner org → Configure custom logo and primary color (red) → Access dashboard via partner URL → Verify red theme and custom logo
-- [ ] Generate API Key → Make cURL request to `/api/public/v1/tenders` → Verify JSON response
-- [ ] Configure outbound webhook URL (e.g., webhook.site) → Trigger a tender match → Verify POST payload arrives with correct HMAC signature
-- [ ] Switch UI language to Hindi → Verify navigation, dashboard labels, and AI summaries appear in Hindi
-
----
-
-## Summary: What Plan 3 Delivers
-
-| Metric | Before Plan 3 | After Plan 3 |
-|:-------|:-------------|:-------------|
-| Integrations | None | REST API + Outbound Webhooks |
-| Channel Sales | Direct sales only | White-label reseller platform |
-| Platform Lock-in | Dashboard usage | Integrated deeply into customer ERP/CRM |
-| Languages | English only | English + Hindi + Regional |
-| Interaction | One-way alerts | Two-way conversational WhatsApp |
-| **Market Position** | **SaaS Tool** | **B2B Procurement Ecosystem** |
+### Manual Verification Checklist
+- [ ] Connect a Wati sandbox number, text search query, confirm receipt of formatted markdown matching database results.
+- [ ] Set up a white-label partner, map custom domain host header, confirm client portal uses custom resellers branding configurations.
+- [ ] Enable outbound webhook subscription, transition a tender pipeline entry stage, assert webhook payload reaches destination with header signature intact.
