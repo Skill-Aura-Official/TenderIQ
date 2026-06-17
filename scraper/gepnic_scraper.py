@@ -11,6 +11,50 @@ import os
 import random
 
 from playwright_bypass import attempt_playwright_bypass
+from urllib.parse import urlparse
+import re
+
+ALLOWED_DOMAINS = {
+    "eprocure.gov.in",
+    "etenders.gov.in",
+    "mahatenders.gov.in",
+    "etender.up.nic.in",
+    "sppp.rajasthan.gov.in",
+    "wbtenders.gov.in",
+    "mptenders.gov.in",
+    "eproc.karnataka.gov.in",
+    "tntenders.gov.in",
+    "www.nprocure.com",
+    "tender.telangana.gov.in",
+    "etenders.hry.nic.in",
+    "eproc.punjab.gov.in",
+    "etenders.kerala.gov.in",
+    "tender.apeprocurement.gov.in"
+}
+
+def verify_url_domain(url):
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        if ":" in domain:
+            domain = domain.split(":")[0]
+        for allowed in ALLOWED_DOMAINS:
+            if domain == allowed or domain.endswith("." + allowed):
+                return True
+        return False
+    except Exception:
+        return False
+
+def sanitize_scraped_text(text):
+    if not text:
+        return ""
+    # Strip script tags and their content
+    text = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', text, flags=re.IGNORECASE)
+    # Strip inline javascript events like onload, onclick etc
+    text = re.sub(r'on\w+\s*=\s*(["\'])(.*?)\1', '', text, flags=re.IGNORECASE)
+    # Strip html tags if raw text is supposed to be plain text, or just strip javascript/dangerous HTML
+    text = re.sub(r'<(iframe|object|embed|style|link|meta)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\/\1>', '', text, flags=re.IGNORECASE)
+    return text
 
 urllib3.disable_warnings()
 
@@ -38,6 +82,10 @@ def fetch_and_parse(source):
         print(f"Unknown source: {source}")
         sys.exit(1)
         
+    if not verify_url_domain(portal_url):
+        print(f"Domain not allowed: {portal_url}")
+        sys.exit(1)
+        
     portal_name = portal_url.split('//')[1].split('.')[0]
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
@@ -47,6 +95,8 @@ def fetch_and_parse(source):
     url = f"{portal_url}/nicgep/app?page=FrontEndLatestActiveTenders&service=page"
     print(f"Fetching LIVE HTML from {url}...")
     try:
+        if not verify_url_domain(url):
+            raise ValueError(f"Domain not allowed: {url}")
         r = requests.get(url, headers=headers, verify=False, timeout=15)
         soup = BeautifulSoup(r.text, 'html.parser')
     except Exception as e:
@@ -111,15 +161,15 @@ def fetch_and_parse(source):
         normalized_tenders.append({
             'source_hash': source_hash,
             'portal_slug': portal_name,
-            'reference_number': ref,
-            'title': title,
-            'organization': org,
+            'reference_number': sanitize_scraped_text(ref),
+            'title': sanitize_scraped_text(title),
+            'organization': sanitize_scraped_text(org),
             'state': source,
-            'category': cat,
+            'category': sanitize_scraped_text(cat) if cat else None,
             'estimated_value': val,
             'emd_amount': emd,
             'submission_deadline': t['deadline'],
-            'raw_text': raw_text
+            'raw_text': sanitize_scraped_text(raw_text)
         })
         
     return normalized_tenders

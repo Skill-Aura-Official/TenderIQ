@@ -25,6 +25,18 @@ export default async function webhookRoutes(fastify: FastInstance) {
     
     let event: any;
 
+    // Enforce signature check in production to prevent fake webhook attacks
+    if (process.env.NODE_ENV === 'production') {
+      if (!sig) {
+        console.error('[RazorpayWebhook ERROR] Missing signature in production.');
+        return reply.code(400).send({ error: { message: 'Missing x-razorpay-signature header' } });
+      }
+      if (!razorpayWebhookSecret) {
+        console.error('[RazorpayWebhook ERROR] Webhook secret not configured in production.');
+        return reply.code(500).send({ error: { message: 'Webhook signing secret not configured' } });
+      }
+    }
+
     if (razorpayWebhookSecret && sig) {
       const expectedSignature = crypto
         .createHmac('sha256', razorpayWebhookSecret)
@@ -35,8 +47,10 @@ export default async function webhookRoutes(fastify: FastInstance) {
         console.error(`[RazorpayWebhook ERROR] Signature mismatch.`);
         return reply.code(400).send({ error: { message: 'Invalid signature' } });
       }
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.log('[RazorpayWebhook] Using mock verification (missing secret or signature in development/test)');
     } else {
-      console.log('[RazorpayWebhook] Using mock verification (missing secret or signature)');
+      return reply.code(400).send({ error: { message: 'Signature verification required' } });
     }
 
     try {

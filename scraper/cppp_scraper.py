@@ -6,10 +6,57 @@ import json
 from datetime import datetime
 import time
 
-urllib3.disable_warnings()
+import urllib3
+import json
+from datetime import datetime
+import time
 import hashlib
+from urllib.parse import urlparse
+import re
 
 CPPP_HTML_URL = "https://eprocure.gov.in/cppp/latestactivetendersnew/cpppdata"
+
+ALLOWED_DOMAINS = {
+    "eprocure.gov.in",
+    "etenders.gov.in",
+    "mahatenders.gov.in",
+    "etender.up.nic.in",
+    "sppp.rajasthan.gov.in",
+    "wbtenders.gov.in",
+    "mptenders.gov.in",
+    "eproc.karnataka.gov.in",
+    "tntenders.gov.in",
+    "www.nprocure.com",
+    "tender.telangana.gov.in",
+    "etenders.hry.nic.in",
+    "eproc.punjab.gov.in",
+    "etenders.kerala.gov.in",
+    "tender.apeprocurement.gov.in"
+}
+
+def verify_url_domain(url):
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        if ":" in domain:
+            domain = domain.split(":")[0]
+        for allowed in ALLOWED_DOMAINS:
+            if domain == allowed or domain.endswith("." + allowed):
+                return True
+        return False
+    except Exception:
+        return False
+
+def sanitize_scraped_text(text):
+    if not text:
+        return ""
+    # Strip script tags and their content
+    text = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', text, flags=re.IGNORECASE)
+    # Strip inline javascript events like onload, onclick etc
+    text = re.sub(r'on\w+\s*=\s*(["\'])(.*?)\1', '', text, flags=re.IGNORECASE)
+    # Strip html tags if raw text is supposed to be plain text, or just strip javascript/dangerous HTML
+    text = re.sub(r'<(iframe|object|embed|style|link|meta)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\/\1>', '', text, flags=re.IGNORECASE)
+    return text
 
 # Standardizing location strings to State Codes for AI matching
 STATE_MAP = {
@@ -50,6 +97,8 @@ def extract_tender_value(detail_url, headers):
     try:
         if not detail_url.startswith("http"):
             detail_url = "https://eprocure.gov.in" + detail_url
+        if not verify_url_domain(detail_url):
+            raise ValueError(f"Domain not allowed: {detail_url}")
         time.sleep(1) # Rate limit
         resp = requests.get(detail_url, headers=headers, timeout=10, verify=False)
         resp.raise_for_status()
@@ -97,6 +146,8 @@ def fetch_and_parse(max_pages=None):
     
     # First request to get total pages
     try:
+        if not verify_url_domain(CPPP_HTML_URL):
+            raise ValueError(f"Domain not allowed: {CPPP_HTML_URL}")
         response = requests.get(CPPP_HTML_URL, headers=headers, timeout=20, verify=False)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -120,6 +171,8 @@ def fetch_and_parse(max_pages=None):
     for page in range(1, total_pages + 1):
         url = f"{CPPP_HTML_URL}?page={page}"
         try:
+            if not verify_url_domain(url):
+                raise ValueError(f"Domain not allowed: {url}")
             response = requests.get(url, headers=headers, timeout=20, verify=False)
             response.raise_for_status()
             content = response.text
@@ -174,15 +227,15 @@ def fetch_and_parse(max_pages=None):
                 if detail_url:
                     estimated_value = extract_tender_value(detail_url, headers)
                 
-                raw_text = f"Title: {title}\\nOrganisation: {org_name}\\nDeadline: {deadline_str}"
+                raw_text = f"Title: {title}\nOrganisation: {org_name}\nDeadline: {deadline_str}"
                 
                 tenders.append({
                     "dedupeHash": hashlib.md5((tender_id + org_name).encode()).hexdigest(),
                     "portalSlug": "cppp",
-                    "referenceNumber": tender_id[:50],
-                    "title": title[:200],
-                    "description": f"Issued by {org_name}",
-                    "rawText": raw_text,
+                    "referenceNumber": sanitize_scraped_text(tender_id[:50]),
+                    "title": sanitize_scraped_text(title[:200]),
+                    "description": sanitize_scraped_text(f"Issued by {org_name}"),
+                    "rawText": sanitize_scraped_text(raw_text),
                     "categoryCodes": json.dumps([]),
                     "stateCodes": json.dumps(state_codes),
                     "estimatedValue": estimated_value,

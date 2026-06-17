@@ -20,8 +20,16 @@ import copilotRoutes from './routes/copilot.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import teamRoutes from './routes/team.js';
 import referralRoutes from './routes/referral.js';
+import { securityHeadersHook, scannerAutobanHook } from './lib/securityHeaders.js';
 
-const app = fastify({ logger: true });
+const app = fastify({ 
+  logger: true,
+  bodyLimit: 1048576 // 1MB payload size limit to prevent memory DDoS
+});
+
+// Register global security filters
+app.addHook('onRequest', scannerAutobanHook);
+app.addHook('preHandler', securityHeadersHook);
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';

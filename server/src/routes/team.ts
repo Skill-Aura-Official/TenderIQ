@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { FastifyInstance } from 'fastify';
 import { db } from '../lib/db.js';
-import { users, teamInvitations, organizations } from '../db/schema.js';
+import { users, teamInvitations, organizations, auditLogs } from '../db/schema.js';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth, requireRole } from '../lib/auth.js';
 import crypto from 'crypto';
@@ -79,7 +79,7 @@ export default async function teamRoutes(fastify: FastifyInstance) {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 day expiry
 
-      await db.insert(teamInvitations).values({
+      const [newInvite] = await db.insert(teamInvitations).values({
         orgId: user.orgId,
         invitedByUserId: user.userId,
         email,
@@ -87,6 +87,16 @@ export default async function teamRoutes(fastify: FastifyInstance) {
         token,
         status: 'pending',
         expiresAt,
+      }).returning();
+
+      await db.insert(auditLogs).values({
+        userId: user.userId,
+        orgId: user.orgId,
+        action: 'create',
+        resourceType: 'user',
+        resourceId: newInvite?.id ? String(newInvite.id) : email,
+        details: JSON.stringify({ invitedEmail: email, assignedRole: role }),
+        ipAddress: request.ip
       });
 
       // Simple print for logging (in production, we'd send email via Resend/SMTP)
@@ -141,6 +151,16 @@ export default async function teamRoutes(fastify: FastifyInstance) {
 
       await db.update(teamInvitations).set({ status: 'accepted' }).where(eq(teamInvitations.id, invite.id));
 
+      await db.insert(auditLogs).values({
+        userId: user.userId,
+        orgId: invite.orgId,
+        action: 'update',
+        resourceType: 'user',
+        resourceId: user.userId,
+        details: JSON.stringify({ acceptedInviteId: invite.id, role: invite.role }),
+        ipAddress: request.ip
+      });
+
       return reply.send({
         data: {
           success: true,
@@ -174,6 +194,17 @@ export default async function teamRoutes(fastify: FastifyInstance) {
       }
 
       await db.update(users).set({ role }).where(eq(users.id, userId));
+
+      await db.insert(auditLogs).values({
+        userId: user.userId,
+        orgId: user.orgId,
+        action: 'update',
+        resourceType: 'user',
+        resourceId: userId,
+        details: JSON.stringify({ oldRole: target.role, newRole: role }),
+        ipAddress: request.ip
+      });
+
       return reply.send({ data: { success: true, message: `Role updated to ${role} successfully` } });
     } catch (err: any) {
       return reply.code(500).send({ error: { message: err.message } });
@@ -212,6 +243,16 @@ export default async function teamRoutes(fastify: FastifyInstance) {
         role: 'admin',
         subscriptionTier: 'free',
       }).where(eq(users.id, userId));
+
+      await db.insert(auditLogs).values({
+        userId: user.userId,
+        orgId: user.orgId,
+        action: 'delete',
+        resourceType: 'user',
+        resourceId: userId,
+        details: JSON.stringify({ removedUserEmail: target.email, newPersonalOrgId: personalOrgId }),
+        ipAddress: request.ip
+      });
 
       return reply.send({ data: { success: true, message: 'Member successfully removed and unlinked' } });
     } catch (err: any) {

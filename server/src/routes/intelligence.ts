@@ -90,7 +90,12 @@ export default async function intelligenceRoutes(fastify: FastifyInstance) {
     const { id } = request.params as any;
 
     try {
-      const [tender] = await db.select().from(tenders).where(eq(tenders.id, id));
+      const [tender] = await db.select().from(tenders).where(
+        and(
+          eq(tenders.id, id),
+          eq(tenders.orgId, user.orgId)
+        )
+      );
       if (!tender) {
         return reply.code(404).send({ error: { message: 'Tender not found' } });
       }

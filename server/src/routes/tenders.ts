@@ -107,7 +107,8 @@ export default async function tenderRoutes(fastify: FastifyInstance) {
 
       // Apply search filter
       if (query.search) {
-        const search = query.search.toLowerCase();
+        // Strip SQL injection signatures like --, /*, */ to sanitize search inputs
+        const search = query.search.toLowerCase().replace(/--|\/\*|\*\//g, '').trim();
         results = results.filter(
           (t: any) => t.title.toLowerCase().includes(search) ||
                t.issuingAuthority.toLowerCase().includes(search) ||

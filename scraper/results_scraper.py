@@ -7,9 +7,59 @@ from datetime import datetime, timedelta
 import random
 import hashlib
 
+import urllib3
+import json
+from datetime import datetime, timedelta
+import random
+import hashlib
+from urllib.parse import urlparse
+import re
+
 urllib3.disable_warnings()
 
 RESULTS_URL = "https://eprocure.gov.in/cppp/resultdata"
+
+ALLOWED_DOMAINS = {
+    "eprocure.gov.in",
+    "etenders.gov.in",
+    "mahatenders.gov.in",
+    "etender.up.nic.in",
+    "sppp.rajasthan.gov.in",
+    "wbtenders.gov.in",
+    "mptenders.gov.in",
+    "eproc.karnataka.gov.in",
+    "tntenders.gov.in",
+    "www.nprocure.com",
+    "tender.telangana.gov.in",
+    "etenders.hry.nic.in",
+    "eproc.punjab.gov.in",
+    "etenders.kerala.gov.in",
+    "tender.apeprocurement.gov.in"
+}
+
+def verify_url_domain(url):
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        if ":" in domain:
+            domain = domain.split(":")[0]
+        for allowed in ALLOWED_DOMAINS:
+            if domain == allowed or domain.endswith("." + allowed):
+                return True
+        return False
+    except Exception:
+        return False
+
+def sanitize_scraped_text(text):
+    if not text:
+        return ""
+    # Strip script tags and their content
+    text = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', text, flags=re.IGNORECASE)
+    # Strip inline javascript events like onload, onclick etc
+    text = re.sub(r'on\w+\s*=\s*(["\'])(.*?)\1', '', text, flags=re.IGNORECASE)
+    # Strip html tags if raw text is supposed to be plain text, or just strip javascript/dangerous HTML
+    text = re.sub(r'<(iframe|object|embed|style|link|meta)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\/\1>', '', text, flags=re.IGNORECASE)
+    return text
 
 STATES = ['MH', 'KA', 'TN', 'GJ', 'UP', 'DL', 'HR', 'TG', 'AP', 'KL']
 CATEGORIES = ['civil_works', 'it_services', 'solar_power', 'medical_supplies', 'road_construction']
@@ -85,6 +135,8 @@ def scrape_results():
     results = []
     
     try:
+        if not verify_url_domain(RESULTS_URL):
+            raise ValueError(f"Domain not allowed: {RESULTS_URL}")
         resp = requests.get(RESULTS_URL, headers=headers, timeout=15, verify=False)
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, 'html.parser')
@@ -112,15 +164,15 @@ def scrape_results():
                         results.append({
                             "sourceHash": source_hash,
                             "portalSlug": "cppp",
-                            "tenderTitle": title,
-                            "tenderRefNumber": ref_num,
-                            "issuingAuthority": org,
+                            "tenderTitle": sanitize_scraped_text(title),
+                            "tenderRefNumber": sanitize_scraped_text(ref_num),
+                            "issuingAuthority": sanitize_scraped_text(org),
                             "stateCodes": json.dumps([state]),
                             "categoryCodes": json.dumps([category]),
                             "estimatedValue": estimated,
                             "awardedAmount": awarded,
                             "l1Rate": round(l1_pct, 2),
-                            "winnerName": winner,
+                            "winnerName": sanitize_scraped_text(winner),
                             "winnerGstNumber": "07AAAAA0000A1Z5",
                             "numberOfBidders": random.randint(3, 7),
                             "awardDate": datetime.now().isoformat(),

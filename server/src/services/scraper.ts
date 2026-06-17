@@ -8,7 +8,41 @@ import { exec } from 'child_process';
 import util from 'util';
 import path from 'path';
 
-const execPromise = util.promisify(exec);
+const ALLOWED_DOMAINS = [
+  'eprocure.gov.in',
+  'etenders.gov.in',
+  'mahatenders.gov.in',
+  'etender.up.nic.in',
+  'sppp.rajasthan.gov.in',
+  'wbtenders.gov.in',
+  'mptenders.gov.in',
+  'eproc.karnataka.gov.in',
+  'tntenders.gov.in',
+  'www.nprocure.com',
+  'tender.telangana.gov.in',
+  'etenders.hry.nic.in',
+  'eproc.punjab.gov.in',
+  'etenders.kerala.gov.in',
+  'tender.apeprocurement.gov.in'
+];
+
+function verifyUrlDomain(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    const hostname = parsed.hostname.toLowerCase();
+    return ALLOWED_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain));
+  } catch (e) {
+    return false;
+  }
+}
+
+function sanitizeHtmlForDb(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+\s*=\s*(['"])(.*?)\1/gi, '')
+    .replace(/<(iframe|object|embed|style|link|meta)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\/\1>/gi, '');
+}
 
 // Use a known organization ID or fetch the first one. Since it's multi-tenant, we need a default org.
 async function getDefaultOrgId() {
@@ -23,6 +57,8 @@ async function getDefaultOrgId() {
   const newOrgs = await db.select().from(organizations).limit(1);
   return newOrgs[0].id;
 }
+
+const execPromise = util.promisify(exec);
 
 export async function scrapePublicTenders() {
   console.log('[Scraper] Starting to fetch new public tenders via Python CPPP scraper...');
@@ -65,6 +101,12 @@ export async function scrapePublicTenders() {
     for (const tender of parsedData) {
       if (!tender.dedupeHash || !tender.title) continue;
 
+      const sourceUrl = `https://eprocure.gov.in/eprocure/app?page=FrontEndTendersByOrganisation&service=page`;
+      if (!verifyUrlDomain(sourceUrl)) {
+        console.warn(`[Scraper Security] URL not in domain whitelist: ${sourceUrl}`);
+        continue;
+      }
+
       // Check if exists
       const existing = await db.select().from(tenders).where(eq(tenders.sourceHash, tender.dedupeHash)).limit(1);
       if (existing.length > 0) {
@@ -74,10 +116,10 @@ export async function scrapePublicTenders() {
       await db.insert(tenders).values({
         orgId: orgId,
         createdBy: createdBy, 
-        portalSlug: tender.portalSlug || 'cppp',
-        portalTenderId: tender.referenceNumber || 'UNKNOWN',
+        portalSlug: sanitizeHtmlForDb(tender.portalSlug || 'cppp'),
+        portalTenderId: sanitizeHtmlForDb(tender.referenceNumber || 'UNKNOWN'),
         issuingAuthority: 'Central Public Procurement Portal',
-        title: tender.title,
+        title: sanitizeHtmlForDb(tender.title),
         categoryCodes: tender.categoryCodes || '[]',
         stateCodes: tender.stateCodes || '[]',
         estimatedValue: tender.estimatedValue ? tender.estimatedValue.toString() : '0',
@@ -86,11 +128,11 @@ export async function scrapePublicTenders() {
         documentOpenDate: new Date(tender.documentOpenDate || new Date()),
         summaryStatus: 'pending', // Requires summarization in Week 3/4
         requiredDocuments: '[]',
-        sourceUrl: `https://eprocure.gov.in/eprocure/app?page=FrontEndTendersByOrganisation&service=page`,
+        sourceUrl: sourceUrl,
         isCancelled: false,
         lastScrapedAt: new Date(),
         sourceHash: tender.dedupeHash,
-        rawText: tender.rawText
+        rawText: sanitizeHtmlForDb(tender.rawText)
       });
       insertedCount++;
     }

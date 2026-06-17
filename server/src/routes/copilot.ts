@@ -11,6 +11,16 @@ import {
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { requireAuth } from '../lib/auth.js';
 import { getLLMProvider } from '../services/llm.js';
+import { rateLimit } from '../lib/rateLimit.js';
+
+// Simple helper to strip malicious tags to prevent Stored XSS / Word Macro exploits
+function sanitizeHtmlForWord(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/on\w+\s*=\s*(['"])(.*?)\1/gi, ''); // strip inline events
+}
 
 export default async function copilotRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', requireAuth);
@@ -32,7 +42,7 @@ export default async function copilotRoutes(fastify: FastifyInstance) {
    * POST /api/v1/copilot/chat
    * Streams chat responses via SSE (Server-Sent Events)
    */
-  fastify.post('/chat', async (request, reply) => {
+  fastify.post('/chat', { preHandler: [rateLimit(10, 60000)] }, async (request, reply) => {
     const user = request.authUser!;
     const { tenderId, conversationId, message } = request.body as any;
 
@@ -41,8 +51,13 @@ export default async function copilotRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      // 1. Fetch the tender
-      const [tender] = await db.select().from(tenders).where(eq(tenders.id, tenderId));
+      // 1. Fetch the tender - scoped to organization to prevent BOLA/IDOR
+      const [tender] = await db.select().from(tenders).where(
+        and(
+          eq(tenders.id, tenderId),
+          eq(tenders.orgId, user.orgId)
+        )
+      );
       if (!tender) {
         return reply.code(404).send({ error: { message: 'Tender not found' } });
       }
@@ -262,8 +277,13 @@ RULES:
     }
 
     try {
-      // 1. Fetch tender and profile
-      const [tender] = await db.select().from(tenders).where(eq(tenders.id, tenderId));
+      // 1. Fetch tender and profile - scoped to org to prevent BOLA/IDOR
+      const [tender] = await db.select().from(tenders).where(
+        and(
+          eq(tenders.id, tenderId),
+          eq(tenders.orgId, user.orgId)
+        )
+      );
       if (!tender) return reply.code(404).send({ error: { message: 'Tender not found' } });
 
       const [profile] = await db.select().from(companyProfiles).where(eq(companyProfiles.orgId, user.orgId));
@@ -351,13 +371,23 @@ Compile the official proposal document. Avoid placeholders or chat preambles. St
     }
 
     try {
-      const [proposal] = await db.select().from(generatedProposals).where(eq(generatedProposals.id, proposalId));
+      const user = request.authUser!;
+      // Fetch proposal - scoped to user ID to prevent BOLA/IDOR leaks
+      const [proposal] = await db.select().from(generatedProposals).where(
+        and(
+          eq(generatedProposals.id, proposalId),
+          eq(generatedProposals.userId, user.userId)
+        )
+      );
       if (!proposal) {
         return reply.code(404).send({ error: { message: 'Proposal not found' } });
       }
 
+      // Sanitize raw contents before Word compilation to prevent stored HTML/XSS macros
+      const sanitizedContent = sanitizeHtmlForWord(proposal.content);
+
       // Convert simple Markdown headers/paragraphs to HTML elements for MS Word compatibility
-      let htmlContent = proposal.content
+      let htmlContent = sanitizedContent
         .replace(/^# (.*$)/gim, '<h1>$1</h1>')
         .replace(/^## (.*$)/gim, '<h2>$1</h2>')
         .replace(/^### (.*$)/gim, '<h3>$1</h3>')

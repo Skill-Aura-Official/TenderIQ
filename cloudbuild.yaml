@@ -1,4 +1,10 @@
 steps:
+  # Run security audit on server dependencies
+  - name: 'gcr.io/cloud-builders/npm'
+    entrypoint: 'npm'
+    args: ['audit', '--audit-level=high']
+    dir: 'server'
+
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/tenderiq-server', './server']
