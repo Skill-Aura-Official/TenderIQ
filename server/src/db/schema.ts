@@ -220,3 +220,88 @@ export const auditLogs = pgTable('audit_logs', {
   ipAddress: text('ip_address'),
   timestamp: timestamp('timestamp').defaultNow().notNull(),
 });
+
+// Copilot Conversations
+export const copilotConversations = pgTable('copilot_conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  tenderId: uuid('tender_id').references(() => tenders.id, { onDelete: 'cascade' }).notNull(),
+  title: text('title').notNull(),         // Auto-generated from first message
+  messageCount: integer('message_count').default(0).notNull(),
+  tokensUsed: integer('tokens_used').default(0).notNull(),  // For usage billing
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Copilot Messages
+export const copilotMessages = pgTable('copilot_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id').references(() => copilotConversations.id, { onDelete: 'cascade' }).notNull(),
+  role: text('role').notNull(),            // 'user' | 'assistant' | 'system'
+  content: text('content').notNull(),
+  metadata: text('metadata'),              // JSON: {model, tokensIn, tokensOut, latencyMs}
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Generated Proposals (exportable documents)
+export const generatedProposals = pgTable('generated_proposals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  tenderId: uuid('tender_id').references(() => tenders.id, { onDelete: 'cascade' }).notNull(),
+  conversationId: uuid('conversation_id').references(() => copilotConversations.id),
+  title: text('title').notNull(),
+  content: text('content').notNull(),       // Markdown content of the proposal
+  format: text('format').notNull(),         // 'markdown' | 'docx' | 'pdf'
+  gcsKey: text('gcs_key'),                  // Exported file in GCS
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Tender Results Table (Historical awards data)
+export const tenderResults = pgTable('tender_results', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenderId: uuid('tender_id').references(() => tenders.id),     // May be null if tender isn't in our DB
+  sourceHash: text('source_hash').unique().notNull(),            // Dedup key
+  portalSlug: text('portal_slug').notNull(),
+  tenderTitle: text('tender_title').notNull(),
+  tenderRefNumber: text('tender_ref_number'),
+  issuingAuthority: text('issuing_authority').notNull(),
+  stateCodes: text('state_codes').notNull(),                     // JSON array string
+  categoryCodes: text('category_codes'),                         // JSON array string
+  estimatedValue: numeric('estimated_value'),                    // Original tender value
+  awardedAmount: numeric('awarded_amount'),                      // Actual winning amount
+  l1Rate: numeric('l1_rate'),                                    // L1 rate percentage (awarded/estimated * 100)
+  winnerName: text('winner_name'),
+  winnerGstNumber: text('winner_gst_number'),
+  numberOfBidders: integer('number_of_bidders'),
+  awardDate: timestamp('award_date'),
+  scrapedAt: timestamp('scraped_at').defaultNow().notNull(),
+});
+
+// Team Invitations
+export const teamInvitations = pgTable('team_invitations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  invitedByUserId: text('invited_by_user_id').references(() => users.id).notNull(),
+  email: text('email').notNull(),
+  role: text('role').notNull(),             // 'tender_manager' | 'contributor' | 'viewer'
+  token: text('token').unique().notNull(),  // Secure invite token
+  status: text('status').notNull().default('pending'), // 'pending' | 'accepted' | 'expired'
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Referral tracking
+export const referrals = pgTable('referrals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  referrerUserId: text('referrer_user_id').references(() => users.id).notNull(),
+  referredEmail: text('referred_email').notNull(),
+  referralCode: text('referral_code').unique().notNull(),
+  status: text('status').notNull().default('pending'), // 'pending' | 'signed_up' | 'converted' | 'rewarded'
+  referredUserId: text('referred_user_id').references(() => users.id),
+  rewardAmount: integer('reward_amount'),  // paise
+  rewardType: text('reward_type'),         // 'credit' | 'extension' | 'cash'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  convertedAt: timestamp('converted_at'),
+});
+

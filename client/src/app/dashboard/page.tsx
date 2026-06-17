@@ -30,11 +30,18 @@ import {
   DollarSign,
   Wifi,
   WifiOff,
-  Shield
+  Shield,
+  Gift,
+  Sparkles,
+  Users
 } from 'lucide-react';
 import { createApiClient } from '../../lib/api';
 import { useRealtime } from '../../lib/useRealtime';
 import toast from 'react-hot-toast';
+import CopilotPanel from '../../components/CopilotPanel';
+import L1RateCard from '../../components/L1RateCard';
+import TeamWorkspace from '../../components/TeamWorkspace';
+import ReferralBanner from '../../components/ReferralBanner';
 
 // Categories mapping
 const CATEGORY_NAMES: Record<string, string> = {
@@ -70,7 +77,7 @@ export default function TenderIQApp() {
   const api = useMemo(() => createApiClient(getToken), [getToken]);
 
   // Navigation & State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'discover' | 'pipeline' | 'vault' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'discover' | 'pipeline' | 'vault' | 'settings' | 'team' | 'referrals'>('dashboard');
   
   // App Core Data State
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -88,6 +95,7 @@ export default function TenderIQApp() {
   const [scoreFilter, setScoreFilter] = useState('');
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [selectedTender, setSelectedTender] = useState<any>(null);
+  const [showCopilot, setShowCopilot] = useState(false);
   
   // Onboarding Wizard State
   const [onboardingStep, setOnboardingStep] = useState<number>(0); // 0 means finished or not started
@@ -723,6 +731,20 @@ export default function TenderIQApp() {
                 Document Vault
               </button>
               <button 
+                onClick={() => setActiveTab('team')}
+                className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'team' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
+              >
+                <Users className="mr-3 h-5 w-5" />
+                Team Workspace
+              </button>
+              <button 
+                onClick={() => setActiveTab('referrals')}
+                className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'referrals' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
+              >
+                <Gift className="mr-3 h-5 w-5" />
+                Referrals
+              </button>
+              <button 
                 onClick={() => setActiveTab('settings')}
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'settings' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
@@ -1271,6 +1293,28 @@ export default function TenderIQApp() {
                 </div>
               )}
 
+              {/* F. TEAM WORKSPACE */}
+              {activeTab === 'team' && (
+                <div className="space-y-6">
+                  <div>
+                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Team Workspace</h1>
+                    <p className="text-sm text-slate-550">Manage workspace seating allocations, member roles, and access settings.</p>
+                  </div>
+                  <TeamWorkspace api={api} currentUser={currentUser} />
+                </div>
+              )}
+
+              {/* G. REFERRALS NETWORK */}
+              {activeTab === 'referrals' && (
+                <div className="space-y-6">
+                  <div>
+                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Referrals & Rewards</h1>
+                    <p className="text-sm text-slate-550">Earn ₹500 discount credits for every colleague you onboard to TenderIQ.</p>
+                  </div>
+                  <ReferralBanner api={api} />
+                </div>
+              )}
+
             </div>
           </main>
 
@@ -1317,11 +1361,35 @@ export default function TenderIQApp() {
                         <span className="font-semibold text-slate-800">{formatINR(selectedTender.emdAmount)}</span>
                       </div>
                       <div className="bg-slate-50 p-3 rounded">
-                        <span className="text-slate-500 block">Estimated Tender Value</span>
+                        <span className="text-slate-555 block">Estimated Tender Value</span>
                         <span className="font-semibold text-slate-800">{formatINR(selectedTender.estimatedValue)}</span>
                       </div>
                     </div>
                   </div>
+
+                  {/* L1 Rate Intelligence Card */}
+                  <L1RateCard 
+                    tenderId={selectedTender.id}
+                    api={api}
+                    userTier={currentUser?.subscriptionTier || 'free'}
+                    category={(() => {
+                      try {
+                        const cats = JSON.parse(selectedTender.categoryCodes || '[]');
+                        return cats[0] || 'civil_works';
+                      } catch (e) {
+                        return 'civil_works';
+                      }
+                    })()}
+                    state={(() => {
+                      try {
+                        const states = JSON.parse(selectedTender.stateCodes || '[]');
+                        return states[0] || 'MH';
+                      } catch (e) {
+                        return 'MH';
+                      }
+                    })()}
+                    estimatedValue={Number(selectedTender.estimatedValue || 0)}
+                  />
 
                   {/* Match vs Missing Breakdown */}
                   <div className="space-y-4">
@@ -1356,7 +1424,13 @@ export default function TenderIQApp() {
                   >
                     Dismiss
                   </button>
-                  <div className="space-x-3">
+                  <div className="space-x-3 flex items-center">
+                    <button 
+                      onClick={() => setShowCopilot(true)}
+                      className="px-4 py-2 bg-violet-600 hover:bg-violet-750 text-white rounded text-xs font-semibold inline-flex items-center shadow-sm"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-1" /> AI Bid Copilot
+                    </button>
                     <button 
                       onClick={() => window.open(selectedTender.sourceUrl, '_blank')}
                       className="px-4 py-2 border border-slate-300 text-slate-700 rounded text-xs font-semibold hover:bg-slate-100 inline-flex items-center"
@@ -1379,6 +1453,16 @@ export default function TenderIQApp() {
                 </div>
 
               </div>
+              
+              {/* Slide-out AI Bid Copilot panel side-by-side with detail panel */}
+              {showCopilot && (
+                <CopilotPanel 
+                  tenderId={selectedTender.id}
+                  api={api}
+                  userTier={currentUser?.subscriptionTier || 'free'}
+                  onClose={() => setShowCopilot(false)}
+                />
+              )}
             </div>
           )}
 

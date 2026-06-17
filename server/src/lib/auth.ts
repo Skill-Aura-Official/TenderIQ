@@ -11,6 +11,7 @@ export interface AuthUser {
   email: string;
   role: 'admin' | 'tender_manager' | 'contributor' | 'viewer';
   orgId: string;
+  subscriptionTier: 'free' | 'starter' | 'pro' | 'enterprise';
 }
 
 // Extend Fastify request to include our auth context
@@ -50,6 +51,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
       email: user.email,
       role: user.role as AuthUser['role'],
       orgId: user.orgId,
+      subscriptionTier: user.subscriptionTier as AuthUser['subscriptionTier'],
     };
   } catch (err: any) {
     request.log.error(err, 'Authentication error');

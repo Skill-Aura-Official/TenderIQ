@@ -320,7 +320,7 @@ export default async function tenderRoutes(fastify: FastifyInstance) {
         sourceUrl: body.sourceUrl || '',
         isCancelled: false,
         lastScrapedAt: new Date(),
-        dedupeHash,
+        sourceHash: dedupeHash,
       });
 
       await createAuditLog(request, 'create', 'tender', tenderId, { title: body.title });

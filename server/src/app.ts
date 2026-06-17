@@ -16,6 +16,10 @@ import webhookRoutes from './routes/webhooks.js';
 import billingRoutes from './routes/billing.js';
 import { startRecommendationCron } from './workers/recommendation.js';
 import { startNotificationCron } from './workers/notification_worker.js';
+import copilotRoutes from './routes/copilot.js';
+import intelligenceRoutes from './routes/intelligence.js';
+import teamRoutes from './routes/team.js';
+import referralRoutes from './routes/referral.js';
 
 const app = fastify({ logger: true });
 
@@ -46,6 +50,10 @@ app.register(vaultRoutes, { prefix: '/api/v1/vault' });
 app.register(adminRoutes, { prefix: '/api/v1' });
 app.register(scraperRoutes, { prefix: '/api/scraper' });
 app.register(webhookRoutes, { prefix: '/api/v1/webhooks' });
+app.register(copilotRoutes, { prefix: '/api/v1/copilot' });
+app.register(intelligenceRoutes, { prefix: '/api/v1/intelligence' });
+app.register(teamRoutes, { prefix: '/api/v1/team' });
+app.register(referralRoutes, { prefix: '/api/v1/referral' });
 
 // Health check (public, no auth required)
 app.get('/health', async () => {

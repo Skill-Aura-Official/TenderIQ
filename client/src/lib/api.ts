@@ -197,6 +197,127 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.data;
     },
 
+    // Copilot
+    async getConversations() {
+      const res = await request('/copilot/conversations', {}, getToken);
+      return res.data;
+    },
+
+    async getConversation(id: string) {
+      const res = await request(`/copilot/conversations/${id}`, {}, getToken);
+      return res.data;
+    },
+
+    async generateProposal(tenderId: string, conversationId: string, title?: string) {
+      const res = await request('/copilot/generate-proposal', {
+        method: 'POST',
+        body: JSON.stringify({ tenderId, conversationId, title }),
+      }, getToken);
+      return res.data;
+    },
+
+    async exportProposal(proposalId: string) {
+      // Return raw response since we need the blob/msword output for downloading
+      const token = getToken ? await getToken() : null;
+      const headers = new Headers();
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      headers.set('Content-Type', 'application/json');
+
+      const response = await fetch(`${API_BASE}/copilot/export`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ proposalId }),
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+      return response.blob();
+    },
+
+    // L1 Intelligence
+    async getL1Rates(category: string, state: string) {
+      const res = await request(`/intelligence/l1-rates?category=${category}&state=${state}`, {}, getToken);
+      return res.data;
+    },
+
+    async getSimilarResults(tenderId: string) {
+      const res = await request(`/intelligence/tender/${tenderId}/similar-results`, {}, getToken);
+      return res.data;
+    },
+
+    async getCompetitors(category?: string, state?: string) {
+      const params = new URLSearchParams();
+      if (category) params.set('category', category);
+      if (state) params.set('state', state);
+      const res = await request(`/intelligence/competitors?${params.toString()}`, {}, getToken);
+      return res.data;
+    },
+
+    async getMarketReport() {
+      const res = await request('/intelligence/market-report', {}, getToken);
+      return res.data;
+    },
+
+    // Team Workspace
+    async getTeamMembers() {
+      const res = await request('/team/members', {}, getToken);
+      return res.data;
+    },
+
+    async inviteTeamMember(email: string, role: string) {
+      const res = await request('/team/invite', {
+        method: 'POST',
+        body: JSON.stringify({ email, role }),
+      }, getToken);
+      return res.data;
+    },
+
+    async acceptInvitation(token: string) {
+      const res = await request(`/team/invite/${token}/accept`, {
+        method: 'POST',
+      }, getToken);
+      return res.data;
+    },
+
+    async updateTeamMemberRole(userId: string, role: string) {
+      const res = await request(`/team/members/${userId}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      }, getToken);
+      return res.data;
+    },
+
+    async removeTeamMember(userId: string) {
+      const res = await request(`/team/members/${userId}`, {
+        method: 'DELETE',
+      }, getToken);
+      return res.data;
+    },
+
+    // Referral Engine
+    async generateReferralCode(referredEmail: string) {
+      const res = await request('/referral/generate', {
+        method: 'POST',
+        body: JSON.stringify({ referredEmail }),
+      }, getToken);
+      return res.data;
+    },
+
+    async getReferralStats() {
+      const res = await request('/referral/stats', {}, getToken);
+      return res.data;
+    },
+
+    async trackReferral(referralCode: string) {
+      const res = await request('/referral/track', {
+        method: 'POST',
+        body: JSON.stringify({ referralCode }),
+      }, getToken);
+      return res.data;
+    },
   };
 }
 

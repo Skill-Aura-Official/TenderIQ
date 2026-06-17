@@ -66,7 +66,7 @@ export async function scrapePublicTenders() {
       if (!tender.dedupeHash || !tender.title) continue;
 
       // Check if exists
-      const existing = await db.select().from(tenders).where(eq(tenders.dedupeHash, tender.dedupeHash)).limit(1);
+      const existing = await db.select().from(tenders).where(eq(tenders.sourceHash, tender.dedupeHash)).limit(1);
       if (existing.length > 0) {
          continue; // Skip existing
       }
@@ -89,7 +89,7 @@ export async function scrapePublicTenders() {
         sourceUrl: `https://eprocure.gov.in/eprocure/app?page=FrontEndTendersByOrganisation&service=page`,
         isCancelled: false,
         lastScrapedAt: new Date(),
-        dedupeHash: tender.dedupeHash,
+        sourceHash: tender.dedupeHash,
         rawText: tender.rawText
       });
       insertedCount++;

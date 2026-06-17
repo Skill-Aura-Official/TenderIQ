@@ -107,7 +107,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       });
 
       // Log the onboarding
-      request.authUser = { userId, clerkId: clerkUserId, email, role: role as any, orgId };
+      request.authUser = { userId, clerkId: clerkUserId, email, role: role as any, orgId, subscriptionTier: 'free' };
       await createAuditLog(request, 'create', 'user', userId, { onboarding: true, role });
 
       return reply.code(201).send({
