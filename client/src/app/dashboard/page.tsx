@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@clerk/nextjs';
+import { useTranslation } from '../../providers/LanguageProvider';
 import { 
   Briefcase, 
   Search, 
@@ -72,6 +73,7 @@ const STATE_NAMES: Record<string, string> = {
 export default function TenderIQApp() {
   const { isLoaded, userId, getToken, signOut } = useAuth();
   const { user } = useUser();
+  const { t, locale, setLocale } = useTranslation();
 
   // Create the API client bound to Clerk's token getter
   const api = useMemo(() => createApiClient(getToken), [getToken]);
@@ -96,6 +98,26 @@ export default function TenderIQApp() {
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [selectedTender, setSelectedTender] = useState<any>(null);
   const [showCopilot, setShowCopilot] = useState(false);
+  const [lastFetchedKey, setLastFetchedKey] = useState('');
+
+  // Fetch translated details when selected tender ID or locale changes
+  useEffect(() => {
+    if (selectedTender && selectedTender.id) {
+      const fetchKey = `${selectedTender.id}:${locale}`;
+      if (lastFetchedKey !== fetchKey) {
+        const fetchDetails = async () => {
+          try {
+            const details = await api.getTender(selectedTender.id, locale);
+            setLastFetchedKey(fetchKey);
+            setSelectedTender(details);
+          } catch (err: any) {
+            console.error("Failed to load translated tender details:", err.message);
+          }
+        };
+        fetchDetails();
+      }
+    }
+  }, [locale, selectedTender?.id, lastFetchedKey, api]);
   
   // Onboarding Wizard State
   const [onboardingStep, setOnboardingStep] = useState<number>(0); // 0 means finished or not started
@@ -707,49 +729,49 @@ export default function TenderIQApp() {
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'dashboard' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
                 <LayoutDashboard className="mr-3 h-5 w-5" />
-                Dashboard
+                {t('dashboard')}
               </button>
               <button 
                 onClick={() => setActiveTab('discover')}
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'discover' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
                 <Compass className="mr-3 h-5 w-5" />
-                Discover
+                {t('discover')}
               </button>
               <button 
                 onClick={() => setActiveTab('pipeline')}
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'pipeline' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
                 <Layers className="mr-3 h-5 w-5" />
-                Pipeline
+                {t('pipeline')}
               </button>
               <button 
                 onClick={() => setActiveTab('vault')}
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'vault' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
                 <FolderOpen className="mr-3 h-5 w-5" />
-                Document Vault
+                {t('vault')}
               </button>
               <button 
                 onClick={() => setActiveTab('team')}
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'team' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
                 <Users className="mr-3 h-5 w-5" />
-                Team Workspace
+                {t('team')}
               </button>
               <button 
                 onClick={() => setActiveTab('referrals')}
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'referrals' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
                 <Gift className="mr-3 h-5 w-5" />
-                Referrals
+                {t('referrals')}
               </button>
               <button 
                 onClick={() => setActiveTab('settings')}
                 className={`w-full flex items-center px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'settings' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white'}`}
               >
                 <SettingsIcon className="mr-3 h-5 w-5" />
-                Settings
+                {t('settings')}
               </button>
               {currentUser?.role === 'admin' && (
                 <Link 
@@ -788,11 +810,25 @@ export default function TenderIQApp() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-md bg-slate-50 focus:bg-white sm:text-sm"
-                    placeholder="Search by tender title, authority, or ID..."
+                    placeholder={t('searchPlaceholder')}
                   />
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                {/* Language Selector Dropdown */}
+                <div className="flex items-center space-x-1.5 border border-slate-200 rounded-lg px-2.5 py-1 bg-slate-50 shadow-sm transition hover:bg-slate-100">
+                  <span className="text-[10px] text-slate-500 font-bold tracking-tight uppercase">{t('language')}:</span>
+                  <select 
+                    value={locale} 
+                    onChange={(e) => setLocale(e.target.value as any)}
+                    className="text-xs border-none bg-transparent focus:ring-0 cursor-pointer font-extrabold text-slate-850 p-0"
+                  >
+                    <option value="en">{t('english')}</option>
+                    <option value="hi">{t('hindi')}</option>
+                    <option value="mr">{t('marathi')}</option>
+                    <option value="ta">{t('tamil')}</option>
+                  </select>
+                </div>
                 <div title={isRealtimeConnected ? "Live Connection Active" : "Reconnecting..."}>
                   {isRealtimeConnected ? (
                     <Wifi className="h-4 w-4 text-success" />
@@ -1339,29 +1375,42 @@ export default function TenderIQApp() {
 
                 {/* Content */}
                 <div className="flex-1 p-6 space-y-8">
-                  
-                  {/* Radial eligibility representation */}
+                    {/* Radial eligibility representation */}
                   <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 flex items-center space-x-6">
                     <div className="relative h-20 w-20 flex-shrink-0 flex items-center justify-center bg-white rounded-full border-4 border-primary">
                       <span className="font-extrabold text-lg text-primary">{selectedTender.matchScore}%</span>
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-slate-900">AI Eligibility Match</h4>
+                      <h4 className="font-bold text-sm text-slate-900">{t('eligibilityMatch')}</h4>
                       <p className="text-xs text-slate-550 mt-1">This score evaluates operational experience, services provided, state boundaries, and document completeness.</p>
                     </div>
                   </div>
 
                   {/* Summary Details */}
                   <div className="space-y-3">
-                    <h3 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">AI Summary & Scope</h3>
-                    <p className="text-xs text-slate-650 leading-relaxed">{selectedTender.aiSummary?.description}</p>
+                    <h3 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">{t('aiSummaryScope')}</h3>
+                    <div className="text-xs text-slate-650 leading-relaxed space-y-2">
+                      {selectedTender.aiSummary?.physicalWorkRequired && (
+                        <div>
+                          <strong>Work Required:</strong> {selectedTender.aiSummary.physicalWorkRequired}
+                        </div>
+                      )}
+                      {selectedTender.aiSummary?.preQualificationCriteria && (
+                        <div>
+                          <strong>Prequalification:</strong> {selectedTender.aiSummary.preQualificationCriteria}
+                        </div>
+                      )}
+                      {selectedTender.aiSummary?.description && (
+                        <div>{selectedTender.aiSummary.description}</div>
+                      )}
+                    </div>
                     <div className="grid grid-cols-2 gap-4 text-xs pt-2">
                       <div className="bg-slate-50 p-3 rounded">
-                        <span className="text-slate-500 block">EMD Amount</span>
+                        <span className="text-slate-550 block">{t('emdAmount')}</span>
                         <span className="font-semibold text-slate-800">{formatINR(selectedTender.emdAmount)}</span>
                       </div>
                       <div className="bg-slate-50 p-3 rounded">
-                        <span className="text-slate-555 block">Estimated Tender Value</span>
+                        <span className="text-slate-550 block">{t('estimatedValue')}</span>
                         <span className="font-semibold text-slate-800">{formatINR(selectedTender.estimatedValue)}</span>
                       </div>
                     </div>
@@ -1393,7 +1442,7 @@ export default function TenderIQApp() {
 
                   {/* Match vs Missing Breakdown */}
                   <div className="space-y-4">
-                    <h3 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">Criteria Gap Analysis</h3>
+                    <h3 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">{t('criteriaGapAnalysis')}</h3>
                     <div className="space-y-3">
                       {selectedTender.breakdown?.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-start text-xs p-3 border border-slate-150 rounded-lg">
@@ -1422,20 +1471,20 @@ export default function TenderIQApp() {
                     onClick={() => handleDismissTender(selectedTender.id)}
                     className="px-4 py-2 border border-slate-300 text-slate-700 rounded text-xs font-semibold hover:bg-slate-100"
                   >
-                    Dismiss
+                    {t('dismiss')}
                   </button>
                   <div className="space-x-3 flex items-center">
                     <button 
                       onClick={() => setShowCopilot(true)}
                       className="px-4 py-2 bg-violet-600 hover:bg-violet-750 text-white rounded text-xs font-semibold inline-flex items-center shadow-sm"
                     >
-                      <Sparkles className="h-3.5 w-3.5 mr-1" /> AI Bid Copilot
+                      <Sparkles className="h-3.5 w-3.5 mr-1" /> {t('aiBidCopilot')}
                     </button>
                     <button 
                       onClick={() => window.open(selectedTender.sourceUrl, '_blank')}
                       className="px-4 py-2 border border-slate-300 text-slate-700 rounded text-xs font-semibold hover:bg-slate-100 inline-flex items-center"
                     >
-                      <ExternalLink className="h-3 w-3 mr-1" /> Original Portal
+                      <ExternalLink className="h-3 w-3 mr-1" /> {t('originalPortal')}
                     </button>
                     {pipeline.some(p => p.tenderId === selectedTender.id) ? (
                       <span className="inline-block px-4 py-2 bg-success text-white rounded text-xs font-semibold">
@@ -1446,7 +1495,7 @@ export default function TenderIQApp() {
                         onClick={() => handleAddToPipeline(selectedTender.id)}
                         className="px-4 py-2 bg-primary text-white rounded text-xs font-semibold hover:bg-primary-hover"
                       >
-                        Save to Pipeline
+                        {t('saveToPipeline')}
                       </button>
                     )}
                   </div>

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import { Toaster } from 'react-hot-toast';
 import { PostHogProvider } from '@/providers/posthog-provider';
+import { LanguageProvider } from '@/providers/LanguageProvider';
 import "./globals.css";
 
 const inter = Inter({
@@ -25,8 +26,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ClerkProvider>
           <PostHogProvider>
-            {children}
-            <Toaster position="top-right" />
+            <LanguageProvider>
+              {children}
+              <Toaster position="top-right" />
+            </LanguageProvider>
           </PostHogProvider>
         </ClerkProvider>
       </body>

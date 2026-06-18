@@ -8,6 +8,7 @@ import { createAuditLog } from '../lib/audit.js';
 import { broadcastToOrg } from '../lib/websocket.js';
 import { z } from 'zod';
 import { recalculateScoresForNewTender } from '../services/matchEngine.js';
+import { getOrTranslateSummary } from '../services/translation.js';
 
 const createTenderSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -223,6 +224,8 @@ export default async function tenderRoutes(fastify: FastifyInstance) {
   fastify.get('/tenders/:id', async (request, reply) => {
     const user = request.authUser!;
     const { id } = request.params as any;
+    const query = request.query as any;
+    const lang = query.lang as string;
 
     try {
       const [item] = await db
@@ -272,6 +275,13 @@ export default async function tenderRoutes(fastify: FastifyInstance) {
             preQualificationCriteria: 'Upgrade to Starter or Pro to view AI Match Analysis'
           }
         };
+      } else if (lang && lang.toLowerCase() !== 'en') {
+        try {
+          const translatedSummary = await getOrTranslateSummary(id, lang);
+          mapped.aiSummary = translatedSummary;
+        } catch (transErr: any) {
+          console.error(`[TendersRoute] Translation error for lang ${lang}:`, transErr.message || transErr);
+        }
       }
 
       return reply.send({ data: mapped });

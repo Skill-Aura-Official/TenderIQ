@@ -100,8 +100,9 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res;
     },
 
-    async getTender(id: string) {
-      const res = await request(`/tenders/${id}`, {}, getToken);
+    async getTender(id: string, lang?: string) {
+      const queryString = lang ? `?lang=${lang}` : '';
+      const res = await request(`/tenders/${id}${queryString}`, {}, getToken);
       return res.data;
     },
 

@@ -8,6 +8,27 @@
       "when": 1781383857938,
       "tag": "0000_bright_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781737058760,
+      "tag": "0001_bitter_revanche",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781802189530,
+      "tag": "0002_burly_surge",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1781802571584,
+      "tag": "0003_white_moira_mactaggert",
+      "breakpoints": true
     }
   ]
 }

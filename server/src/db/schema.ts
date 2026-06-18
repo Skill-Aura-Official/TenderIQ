@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, numeric, customType, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, boolean, timestamp, numeric, customType, uuid, index } from 'drizzle-orm/pg-core';
 
 // Custom type for vector if we don't have direct drizzle support
 const vector = customType<{ data: number[]; driverData: string }>({
@@ -13,6 +13,17 @@ const vector = customType<{ data: number[]; driverData: string }>({
   },
 });
 
+// Reseller Partners Table (Phase 2)
+export const partners = pgTable('partners', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  domain: text('domain').unique(), // Custom domain (e.g., tenders.mycafirm.com)
+  brandingConfig: text('branding_config'), // JSON: { logoUrl, primaryColor, name }
+  revenueSharePercent: integer('revenue_share_percent').default(20),
+  stripeConnectAccountId: text('stripe_connect_account_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Organizations Table (Multi-Tenancy)
 export const organizations = pgTable('organizations', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -20,7 +31,12 @@ export const organizations = pgTable('organizations', {
   isActive: boolean('is_active').default(true).notNull(),
   banReason: text('ban_reason'),
   allowedFeatures: text('allowed_features'), // JSON array string
+  partnerId: uuid('partner_id').references(() => partners.id, { onDelete: 'set null' }), // Null if direct customer
   createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    partnerIdIdx: index('organizations_partner_id_idx').on(table.partnerId),
+  };
 });
 
 // Users Table
@@ -28,6 +44,7 @@ export const users = pgTable('users', {
   id: text('id').primaryKey(), // Clerk User ID
   clerkId: text('clerk_id').unique().notNull(), // Clerk external ID
   email: text('email').unique().notNull(),
+  phoneNumber: text('phone_number'), // Optional phone number for WhatsApp bot
   role: text('role').notNull().default('viewer'), // 'super_admin' | 'admin' | 'tender_manager' | 'contributor' | 'viewer'
   subscriptionTier: text('subscription_tier').notNull().default('free'), // 'free' | 'starter' | 'pro' | 'enterprise'
   razorpayCustomerId: text('razorpay_customer_id'),
@@ -303,5 +320,48 @@ export const referrals = pgTable('referrals', {
   rewardType: text('reward_type'),         // 'credit' | 'extension' | 'cash'
   createdAt: timestamp('created_at').defaultNow().notNull(),
   convertedAt: timestamp('converted_at'),
+});
+
+// WhatsApp Interactions (Phase 1)
+export const whatsappInteractions = pgTable('whatsapp_interactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').references(() => users.id).notNull(),
+  phoneNumber: text('phone_number').notNull(),
+  messageType: text('message_type').notNull(), // 'incoming' | 'outgoing'
+  content: text('content').notNull(),
+  intent: text('intent'), // 'search' | 'pipeline_status' | 'help' | 'unknown'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Secure API keys (Phase 3)
+export const apiKeys = pgTable('api_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  keyHash: text('key_hash').notNull(), // SHA-256 hashed API key
+  prefix: text('prefix').notNull(),    // e.g., 'tiq_live_'
+  isActive: boolean('is_active').default(true).notNull(),
+  lastUsedAt: timestamp('last_used_at'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    keyHashIdx: index('api_keys_key_hash_idx').on(table.keyHash),
+  };
+});
+
+// Outbound Webhook Subscriptions (Phase 3)
+export const webhookSubscriptions = pgTable('webhook_subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  url: text('url').notNull(),
+  secret: text('secret').notNull(), // Shared secret for HMAC-SHA256 signatures
+  events: text('events').notNull(), // JSON array string
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    orgIdIdx: index('webhook_subscriptions_org_id_idx').on(table.orgId),
+  };
 });
 

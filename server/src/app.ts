@@ -20,6 +20,9 @@ import copilotRoutes from './routes/copilot.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import teamRoutes from './routes/team.js';
 import referralRoutes from './routes/referral.js';
+import partnerRoutes from './routes/partner.js';
+import publicApiRoutes from './routes/public_api.js';
+import whatsappWebhookRoutes from './routes/whatsapp_webhook.js';
 import { securityHeadersHook, scannerAutobanHook } from './lib/securityHeaders.js';
 
 const app = fastify({ 
@@ -62,6 +65,9 @@ app.register(copilotRoutes, { prefix: '/api/v1/copilot' });
 app.register(intelligenceRoutes, { prefix: '/api/v1/intelligence' });
 app.register(teamRoutes, { prefix: '/api/v1/team' });
 app.register(referralRoutes, { prefix: '/api/v1/referral' });
+app.register(partnerRoutes, { prefix: '/api/v1/partner' });
+app.register(publicApiRoutes, { prefix: '/api/v1/public' });
+app.register(whatsappWebhookRoutes, { prefix: '/api/v1/webhooks/whatsapp' });
 
 // Health check (public, no auth required)
 app.get('/health', async () => {
