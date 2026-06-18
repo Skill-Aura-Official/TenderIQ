@@ -67,7 +67,7 @@ export default function AdminOverviewPage() {
         <div className="p-6 bg-slate-900 rounded-xl border border-slate-800">
           <div className="flex items-center gap-3 mb-4 text-slate-400">
             <Database className="w-5 h-5 text-yellow-400" />
-            <h3 className="font-semibold text-sm">Today's Fetched</h3>
+            <h3 className="font-semibold text-sm">Today&apos;s Fetched</h3>
           </div>
           <p className="text-3xl font-extrabold text-white">{metrics.todayFetched}</p>
         </div>

@@ -175,7 +175,7 @@ export default function ReferralBanner({ api }: ReferralBannerProps) {
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             {stats.referralsList.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">
-                You haven't referred any colleagues yet. Invite people to earn credits!
+                You haven&apos;t referred any colleagues yet. Invite people to earn credits!
               </div>
             ) : (
               <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
